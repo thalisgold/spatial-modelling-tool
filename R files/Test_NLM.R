@@ -3,6 +3,7 @@ library(landscapetools)
 library(ggplot2)
 library(raster)
 library(caret)
+library(Metrics)
 
 # Test grids
 # Create grids
@@ -29,7 +30,7 @@ library(caret)
 #?nlm_distancegradient
 # simulate a distance gradient
 distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
-                                          origin = c(20, 30, 10, 15))
+                                          origin = c(80, 120, 40, 5))
 
 # visualize the NLM
 # landscapetools::show_landscape(distance_gradient)
@@ -211,6 +212,48 @@ names(outcome) <- "outcome"
 show_landscape(outcome)
 
 # Generating training points (depending on user input)
+n_train = 50
+# Training points: Regular
+train_reg <- st_sample(study_area, n_train, type="regular")
+train_reg <- st_sf(geom=train_reg)
+ggplot() +
+  geom_sf(data = train_reg, size = 1) +
+  geom_sf(data = study_area,  alpha = 0) +
+  theme_bw()
+
+# Training points: Random
+train_rand <-  st_sample(study_area, n_train, type="random")
+train_rand <- st_sf(geom=train_rand)
+ggplot() +
+  geom_sf(data = train_rand, size = 1) +
+  geom_sf(data = study_area,  alpha = 0) +
+  theme_bw()
+
+# Training points: Clust1
+train_clust1 <- clustered_sample(study_area, n_train/5, n_train*4/5, dimgrid*0.05)
+train_clust1 <- st_sf(geom=train_clust1)
+ggplot() +
+  geom_sf(data = train_clust1, size = 1) +
+  geom_sf(data = study_area,  alpha = 0) +
+  theme_bw()
+
+# Training points: Clust2
+train_clust2 <- clustered_sample(study_area, n_train/10, n_train*9/10, dimgrid*0.05)
+train_clust2 <- st_sf(geom=train_clust2)
+ggplot() +
+  geom_sf(data = train_clust2, size = 1) +
+  geom_sf(data = study_area,  alpha = 0) +
+  theme_bw()
+
+# Training points: Non-uniform
+nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
+train_nonunif <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_train, type = "random")
+train_nonunif <- st_sf(geom=train_nonunif)
+ggplot() +
+  geom_sf(data = train_nonunif, size = 1) +
+  geom_sf(data = study_area,  alpha = 0) +
+  theme_bw()
+
 # "random"
 set.seed(100)
 train_points <- st_sample(study_area, 50, type = "random")
@@ -229,7 +272,7 @@ coord_points$y <- st_coordinates(coord_points)[,2]
 coord_stack <- rasterise_and_stack(coord_points, 
                                    which(names(coord_points)%in%c("x","y")), 
                                    c("coord1", "coord2"))
-show_landscape(outcome)
+
 # Stack all predictors
 all_stack <- stack(outcome, predictors)
 
@@ -243,7 +286,6 @@ all_stack <- stack(outcome, predictors, coord_stack)
 # Grid to predict surface, extract inner/outer grid indicator
 surf_data <- as.data.frame(raster::extract(all_stack, point_grid))
 surf_data$area <- point_grid$areant_grid$area
-all_cntrl <- trainControl(method="none", savePredictions=TRUE)
 
 # Create default model
 model_default <- train(train_data,
@@ -255,12 +297,16 @@ model_default <- train(train_data,
 model_default
 prediction_default <- predict(all_stack, model_default)
 show_landscape(prediction_default)
-dif_default <- prediction_default - outcome
+show_landscape(outcome)
+dif_default <- outcome - prediction_default
 show_landscape(dif_default)
+
+prediction_default_abs <- abs(prediction_default)
+MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
 
 
 # Model with training with random cross validation (nicht sinnvoll für Daten mit räumlichen Abhängigkeiten)
-model_rcv_default <- train(train_data,
+model_rcv <- train(train_data,
                    train_data$outcome,
                    method = "rf",
                    importance = TRUE,
@@ -270,8 +316,11 @@ model_rcv_default <- train(train_data,
 model_rcv
 prediction_rcv <- predict(all_stack, model_rcv)
 show_landscape(prediction_rcv)
-dif_rcv <- prediction_rcv - outcome
+dif_rcv <- outcome- prediction_rcv
 show_landscape(dif_rcv)
+
+prediction_rcv_abs <- abs(prediction_rcv)
+MAE_rcv <- sum(raster::extract(prediction_rcv_abs, point_grid))/10000
 
 # Difference between simulated outcome and prediction
 dif_rcv <- prediction_rcv - outcome
@@ -284,4 +333,102 @@ ggplot(surf_data) +
   scale_fill_scico("Simulated\noutcome", palette = 'roma') +
   xlab("") + ylab("") + 
   theme_bw() + theme(legend.position = "bottom")
+
+
+#' Sandbox clustered sampling
+#' @description 
+#' Function to generate clustered samples by randomly simulating parent points and subsequently
+#' random offspring points located within a radius of the parents.
+#' @param area A sf polygon object representing the study area boundaries.
+#' @param n1 Integer. Number of parents to simulate.
+#' @param n2 Integer. Number of offspring to simulate.
+#' @param radius Numeric. Radius of the buffer for offspring simulation.
+#' @return A sf point object with the samples.
+clustered_sample <- function(area, n1, n2, radius){
+  
+  # Calculate number of offspring per parent and round in case not integers are given
+  nchild <- round(n2/n1, 0)
+  n2 <- round(n2, 0)
+  n1 <- round(n1, 0)
+  
+  # Simulate parents
+  parents <- st_sf(geom=st_sample(area, n1, type="random"))
+  res <- parents
+  
+  # Simulate offspring
+  for(i in 1:nrow(parents)){
+    
+    # Generate buffer and cut parts outside of the area of study
+    buf <- st_buffer(parents[i,], dist=radius)
+    buf <- st_crop(buf, st_bbox(area))
+    
+    # Simulate children
+    children <- st_sf(geom=st_sample(buf, nchild, type="random"))
+    res <- rbind(res, children)
+  }
+  
+  return(res)
+}
+
+#' Create a square polygon
+#' @param xmin Numeric. Minimum x coordinate for square creation.
+#' @param ymin Numeric. Minimum y coordinate for square creation.
+#' @param ch_len Numeric. Side length of the square
+#' @return A sf polygon object corresponding to a square.
+#' @examples
+#' plot(checkerpolys(0, 0, 10))
+checkerpolys <- function(xmin, ymin, ch_len){	
+  # Get maxs	
+  xmax <- xmin + ch_len	  
+  ymax <- ymin + ch_len	  
+  
+  # Create poly
+  poly <- list(matrix(c(xmin,ymin,	
+                        xmax,ymin,	  
+                        xmax,ymax,	  
+                        xmin,ymax,	   
+                        xmin,ymin),ncol=2, byrow=TRUE)) 
+  poly <- st_sf(geom=st_sfc(st_polygon(poly)))
+  return(poly)
+}
+
+#' Non-uniform sampling areas generation
+#' @description 
+#' This functions partitions the study area into many squares, and randomly selects a subset of
+#' them for non-uniform sampling.
+#' @param dgrid Integer. Dimension of one side of the squared study area. 
+#' @param blockside Integer. Number of squares per axis.
+#' @param targetblock Integer. Number of squares from which we will sample. 
+#' @return A polygon sf object consisting of squares with a column named "sample" taking two 
+#' values: "Yes", if the square is considered for sampling; "No", otherwise.
+#' @examples
+#' plot(nonuniform_sampling_polys(100))
+nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
+  
+  # Calculate right margin and size of the block
+  size_block <- dgrid/blockside
+  
+  # Construct grid
+  xmins <- seq(0, dgrid-size_block, size_block)
+  ymins <- xmins
+  coords_checker <- expand.grid(xmins=xmins, ymins=ymins)
+  
+  # Create 1st square poly
+  checker_folds <- checkerpolys(coords_checker$xmins[1], coords_checker$ymins[1], size_block)
+  # Iterate for the rest and add
+  for(i in 2:nrow(coords_checker)){
+    temp <- checkerpolys(coords_checker$xmins[i], 
+                         coords_checker$ymins[i], size_block)
+    checker_folds <- rbind(checker_folds,temp)
+  }
+  
+  # Draw random blocks for sampling
+  sampling_vector <- c(rep("Yes", targetblock), rep("No", blockside^2-targetblock))
+  checker_folds$sample <- sample(sampling_vector, replace=FALSE)
+  
+  # Return object
+  return(checker_folds)
+}
+
+
 

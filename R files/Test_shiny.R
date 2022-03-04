@@ -5,8 +5,12 @@ library(ggplot2)
 library(dplyr)
 
 # Load data --------------------------------------------------------------------
-
-load("movies.RData")
+# Create grids
+dimgrid <- 100
+rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
+point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
+# Create sampling areas
+study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 
 # Define UI --------------------------------------------------------------------
 
@@ -44,8 +48,12 @@ ui <- fluidPage(
       ),
       selectInput(
         inputId = "dist_trainingdata", label = "Distribution of sampling points:",
-        choices = c("Random", "Regular", "Weak clustering", "Strong clustering", "Uniform"),
-        selected = "Regular"
+        choices = c("Random" = "random",
+                    "Regular" = "regular",
+                    "Weak clustering" ="clust1",
+                    "Strong clustering" ="clust2",
+                    "Non-uniform" ="nonunif"),
+        selected = "Random"
       ),
       h4("Modelling"),
       radioButtons(
@@ -76,14 +84,23 @@ ui <- fluidPage(
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
-  output$trainindata <- renderPlot({
-    ggplot(data = movies, aes_string(x = input$x, y = input$y)) +
-      geom_point()
-  })
-  
-  output$moviestable <- renderDataTable({
-    nearPoints(movies, input$plot_hover) %>%
-      select(title, audience_score, critics_score)
+  output$trainingdata <- renderPlot({
+    if(input$dist_trainingdata %in% c("clust1")){
+      train_points <- clustered_sample(study_area, input$n_trainingdata/5, input$n_trainingdata*4/5, dimgrid*0.05)
+    }else if(input$dist_trainingdata %in% c("clust2")){
+      train_points <- clustered_sample(study_area, input$n_trainingdata/10, input$n_trainingdata*9/10, dimgrid*0.05)
+    }else if(input$dist_trainingdata %in% c("nonunif")){
+      nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
+      train_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), input$n_trainingdata, type = "random")
+      train_points <- st_sf(geom=train_points)
+    }else{
+      train_points <- st_sample(study_area, input$n_trainingdata, type = input$dist_trainingdata)
+      train_points <- st_sf(geom=train_points)
+    }
+    ggplot() +
+      geom_sf(data = train_points, size = 1) +
+      geom_sf(data = study_area,  alpha = 0) +
+      theme_bw()
   })
 }
 
