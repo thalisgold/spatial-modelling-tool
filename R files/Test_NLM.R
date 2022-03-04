@@ -30,7 +30,7 @@ library(Metrics)
 #?nlm_distancegradient
 # simulate a distance gradient
 distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
-                                          origin = c(80, 120, 40, 5))
+                                          origin = c(80, 10, 40, 5))
 
 # visualize the NLM
 # landscapetools::show_landscape(distance_gradient)
