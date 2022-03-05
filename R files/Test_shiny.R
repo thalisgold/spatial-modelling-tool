@@ -18,6 +18,42 @@ point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
 # Create sampling areas
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 
+#' Create stack from point layer
+#' @description 
+#' Function to create a stack of rasters from a sf point object with cell values included 
+#' as columns.
+#' @param sf_points A sf point object. Point data, typically a regular grid with numeric attributes
+#' as columns, that we want to convert into a raster stack.
+#' @param cols_indx Integer or vector of integers. Indices of the columns of the sf object from 
+#' which to generate the raster values.
+#' @param layers_names A string or vector of strings. Names to assign to the new layers of the
+#'  stack.
+#' @return A raster stack.
+rasterise_and_stack <- function(sf_points, cols_indx, layers_names){
+  
+  # Make sure of equal length of indices and names
+  if(length(cols_indx)!=length(layers_names)){
+    stop("Colummns indeces and layer names must have the same length.")
+  }
+  
+  # Create stack from first element and name it
+  res_stack <- rasterFromXYZ(cbind(st_coordinates(sf_points), 
+                                   as.matrix(as.data.frame(sf_points)[,cols_indx[1]], ncol=1)))
+  names(res_stack) <- layers_names[1]
+  
+  # If there are more elements to be stacked, proceed
+  if(length(cols_indx)>1){
+    for(i in 2:length(cols_indx)){
+      cindx <- cols_indx[i]
+      temprast <- rasterFromXYZ(cbind(st_coordinates(sf_points), 
+                                      as.matrix(as.data.frame(sf_points)[,cindx], ncol=1)))
+      names(temprast) <- layers_names[i]
+      res_stack <- stack(res_stack, temprast)
+    }
+  }
+  return(res_stack)
+}
+
 #' Sandbox clustered sampling
 #' @description 
 #' Function to generate clustered samples by randomly simulating parent points and subsequently
@@ -112,11 +148,10 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
   # Return object
   return(checker_folds)
 }
-predictors <- stack(distance_gradient, edge_gradient)
 
 # +, -, *, /, ^2
-generate_random_function <- function (predictors) {
-  operands = c("+", "-", "*", "^2 +", "^3 -")
+generate_random_function <- function(predictors) {
+  operands = c("+", "-", "*", "^2 +", "^3 -", "^2 *", "^2 -", "^3 +")
   expression = ""
   for (i in 1:(nlayers(predictors)-1)){
     expression <- paste(expression, paste("predictors$", names(predictors)[i], sep=""), sep = " ")
@@ -124,8 +159,22 @@ generate_random_function <- function (predictors) {
   }
   expression <- paste(expression, paste("predictors$", names(predictors)[nlayers(predictors)], sep=""), sep = " ")
   return(expression)
-  # outcome <- expression[1]
-  # return(outcome)
+}
+
+generate_train_points <- function(n_trainingdata, dist_trainingdata){
+  if(dist_trainingdata %in% c("clust1")){
+    train_points <- clustered_sample(study_area, n_trainingdata/5, n_trainingdata*4/5, dimgrid*0.05)
+  }else if(dist_trainingdata %in% c("clust2")){
+    train_points <- clustered_sample(study_area, n_trainingdata/10, n_trainingdata*9/10, dimgrid*0.05)
+  }else if(dist_trainingdata %in% c("nonunif")){
+    nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
+    train_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_trainingdata, type = "random")
+    train_points <- st_sf(geom=train_points)
+  }else{
+    train_points <- st_sample(study_area, n_trainingdata, type = dist_trainingdata)
+    train_points <- st_sf(geom=train_points)
+  }
+  return(train_points)
 }
 # Define UI --------------------------------------------------------------------
 
@@ -177,6 +226,11 @@ ui <- fluidPage(
                     "Non-uniform" ="nonunif"),
         selected = "Random"
       ),
+      
+      actionButton(
+        inputId = "gen_prediction", label = "Generate prediction"
+      ),
+      
       h4("Modelling"),
       radioButtons(
         inputId = "algorithm", label = "Choose algorithm for training:",
@@ -199,6 +253,7 @@ ui <- fluidPage(
       plotOutput(outputId = "predictors"),
       plotOutput(outputId = "trainingdata"),
       plotOutput(outputId = "outcome"),
+      plotOutput(outputId = "prediction"),
       br()
     )
   )
@@ -208,22 +263,14 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   predictors <- stack()
-  
+  out_true <- raster()
+  train_points <- reactive({
+    req(input$n_trainingdata, input$dist_trainingdata)
+    generate_train_points(input$n_trainingdata, input$dist_trainingdata)
+  })
   output$trainingdata <- renderPlot({
-    if(input$dist_trainingdata %in% c("clust1")){
-      train_points <- clustered_sample(study_area, input$n_trainingdata/5, input$n_trainingdata*4/5, dimgrid*0.05)
-    }else if(input$dist_trainingdata %in% c("clust2")){
-      train_points <- clustered_sample(study_area, input$n_trainingdata/10, input$n_trainingdata*9/10, dimgrid*0.05)
-    }else if(input$dist_trainingdata %in% c("nonunif")){
-      nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
-      train_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), input$n_trainingdata, type = "random")
-      train_points <- st_sf(geom=train_points)
-    }else{
-      train_points <- st_sample(study_area, input$n_trainingdata, type = input$dist_trainingdata)
-      train_points <- st_sf(geom=train_points)
-    }
     ggplot() +
-      geom_sf(data = train_points, size = 1) +
+      geom_sf(data = train_points(), size = 1) +
       geom_sf(data = study_area,  alpha = 0) +
       theme_bw()
   })
@@ -293,12 +340,55 @@ server <- function(input, output, session) {
       expression <- generate_random_function(predictors)
       print(expression)
       out_true <- eval(parse(text=expression))
+      names(out_true) <- "outcome"
       
       output$outcome <- renderPlot({
         show_landscape(out_true)
       })
-      
+      observeEvent(input$gen_prediction, {
+        # Creating coordinate points to include them in the surface_data
+        coord_points <- point_grid
+        coord_points$x <- st_coordinates(coord_points)[,1]
+        coord_points$y <- st_coordinates(coord_points)[,2]
+        coord_stack <- rasterise_and_stack(coord_points, 
+                                           which(names(coord_points)%in%c("x","y")), 
+                                           c("coord1", "coord2"))
+        
+        # Stack all predictors
+        all_stack <- stack(out_true, predictors)
+        # Extracting all necessary information to create the training data
+        train_data <- as.data.frame(raster::extract(all_stack, train_points()))
+
+        # Adding the coord_stack to visualize it later
+        all_stack <- stack(out_true, predictors, coord_stack)
+
+        # Grid to predict surface, extract inner/outer grid indicator
+        surf_data <- as.data.frame(raster::extract(all_stack, point_grid))
+        print(head(surf_data))
+        # surf_data$area <- point_grid$areant_grid$area
+
+        # Create default model
+        model_default <- train(train_data,
+                               train_data$outcome,
+                               method = "rf",
+                               importance = TRUE,
+                               ntree = 500)
+        # print(model_default)
+        # model_default
+        prediction_default <- predict(all_stack, model_default)
+        output$prediction <- renderPlot({
+          show_landscape(prediction_default)
+        })
+        # show_landscape(outcome)
+        # dif_default <- outcome - prediction_default
+        # show_landscape(dif_default)
+        prediction_default_abs <- abs(prediction_default)
+        MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
+        print(MAE_default)
+
+      })
     })
+    
     # print(names(predictors))
     # print(nlayers(predictors))
     if (nlayers(predictors) != 0) {
