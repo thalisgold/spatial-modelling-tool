@@ -10,14 +10,7 @@ library(caret)
 library(sf)
 
 
-# Load data --------------------------------------------------------------------
-# Create grids
-dimgrid <- 100
-rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
-point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
-# Create sampling areas
-study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
-
+# Load functions ---------------------------------------------------------------
 #' Create stack from point layer
 #' @description 
 #' Function to create a stack of rasters from a sf point object with cell values included 
@@ -176,6 +169,77 @@ generate_train_points <- function(n_trainingdata, dist_trainingdata){
   }
   return(train_points)
 }
+
+generate_predictors <- function(nlm){
+  predictors <- stack()
+  for (i in 1:length(nlm)) {
+    if (nlm[i] %in% c("Distance gradient")){
+      distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
+                                                origin = c(80, 10, 40, 5))
+      predictors$distance_gradient <- distance_gradient
+    }
+    else if(nlm[i] %in% c("Edge gradient")){
+      edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 30)
+      predictors$edge_gradient <- edge_gradient
+    }
+    else if(nlm[i] %in% c("Fractional brownian motion")){
+      fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
+      predictors$fbm_raster <- fbm_raster
+    }
+    else if(nlm[i] %in% c("Gaussian random field")){
+      gaussian_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
+                                          autocorr_range = 100,
+                                          mag_var = 8,
+                                          nug = 5)
+      predictors$gaussian_field <- gaussian_field
+    }
+    else if(nlm[i] %in% c("Polygonal landscapes")){
+      mosaictess <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
+      predictors$mosaictess <- mosaictess
+    }
+    else if(nlm[i] %in% c("Random neighbourhood")){
+      neigh_raster <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
+                                p_empty = 0.1, categories = 5, neighbourhood = 8)
+      predictors$neigh_raster <- neigh_raster
+    }
+    else if(nlm[i] %in% c("Planar gradient")){
+      planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)
+      predictors$planar_gradient <- planar_gradient
+    }
+    else if(nlm[i] %in% c("Random")){
+      random <- nlm_random(ncol = 100, nrow = 100)
+      predictors$random <- random
+    }
+    else if(nlm[i] %in% c("Random cluster")){
+      random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
+                                          p = 0.4, ai = c(0.25, 0.25, 0.5))
+      predictors$random_cluster <- random_cluster
+    }
+    else if(nlm[i] %in% c("Random rectangular cluster")){
+      randomrectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
+                                                                nrow = 100,
+                                                                minl = 5,
+                                                                maxl = 10)
+      predictors$randomrectangular_cluster <- randomrectangular_cluster
+    }
+  }
+  return(predictors)
+}
+
+# Load data --------------------------------------------------------------------
+# Create grids
+dimgrid <- 100
+rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
+point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
+# Create sampling areas
+study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
+# Creating coordinate points to include them in the surface_data
+coord_points <- point_grid
+coord_points$x <- st_coordinates(coord_points)[,1]
+coord_points$y <- st_coordinates(coord_points)[,2]
+coord_stack <- rasterise_and_stack(coord_points,
+                                   which(names(coord_points)%in%c("x","y")),
+                                   c("coord1", "coord2"))
 # Define UI --------------------------------------------------------------------
 
 ui <- fluidPage(
@@ -184,25 +248,27 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       h4("Parameters for predictors"),
-      sliderInput(
-        inputId = "n_predictors",
-        label = "Number of predictors:",
-        value = 11,
-        min = 2,
-        max = 20,
-        step = 1,
-        width = "100%"
-      ),
+      # sliderInput(
+      #   inputId = "n_predictors",
+      #   label = "Number of predictors:",
+      #   value = 11,
+      #   min = 2,
+      #   max = 20,
+      #   step = 1,
+      #   width = "100%"
+      # ),
       
       selectInput(
         inputId = "nlm", label = "NLM:",
         choices = c("Distance gradient", "Edge gradient", "Fractional brownian motion",
                     "Gaussian random field", "Planar gradient", "Polygonal landscapes",
                     "Random", "Random cluster", "Random neighbourhood", "Random rectangular cluster"),
-        multiple = TRUE,
-        selected = c("Distance gradient", "Edge gradient")
+        multiple = TRUE
       ),
       
+      actionButton(
+        inputId = "generate_predictors", label = "Generate selected predictors"
+      ),
       actionButton(
         inputId = "sim_outcome", label = "Simulate outcome"
       ),
@@ -213,7 +279,7 @@ ui <- fluidPage(
         label = "Number of sampling points:",
         value = 50,
         min = 50,
-        max = 150,
+        max = 250,
         step = 50,
         width = "60%"
       ),
@@ -254,6 +320,7 @@ ui <- fluidPage(
       plotOutput(outputId = "trainingdata"),
       plotOutput(outputId = "outcome"),
       plotOutput(outputId = "prediction"),
+      textOutput(outputId = "mae"),
       br()
     )
   )
@@ -262,141 +329,89 @@ ui <- fluidPage(
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
-  predictors <- stack()
-  out_true <- raster()
+  predictors <- eventReactive(input$generate_predictors, {
+    req(input$nlm)
+    generate_predictors(input$nlm)
+  })
+  
+  simulation <- eventReactive(input$sim_outcome, {
+    simulation <- raster()
+    names = character()
+    predictors <- predictors()
+    print(names(predictors))
+    for (i in 1:nlayers(predictors)) {
+      names <- c(names, paste("pred_", i, sep=""))
+    }
+    # print(names)
+    names(predictors) <- names
+    print(names(predictors))
+    # print(names(predictors))
+    expression <- generate_random_function(predictors)
+    print(expression)
+    simulation <- eval(parse(text=expression))
+    names(simulation) <- "outcome"
+    return(simulation)
+  })
+  
   train_points <- reactive({
     req(input$n_trainingdata, input$dist_trainingdata)
     generate_train_points(input$n_trainingdata, input$dist_trainingdata)
   })
+  
+  output$predictors <- renderPlot({
+      show_landscape(predictors())
+  })
+  
   output$trainingdata <- renderPlot({
     ggplot() +
       geom_sf(data = train_points(), size = 1) +
       geom_sf(data = study_area,  alpha = 0) +
       theme_bw()
   })
-  output$predictors <- renderPlot({
-    print(nlayers(predictors))
-    for (i in 1:length(input$nlm)) {
-      if (input$nlm[i] %in% c("Distance gradient")){
-        distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
-                                                  origin = c(80, 10, 40, 5))
-        predictors$distance_gradient <- distance_gradient
-      }
-      else if(input$nlm[i] %in% c("Edge gradient")){
-        edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 30)
-        predictors$edge_gradient <- edge_gradient
-      }
-      else if(input$nlm[i] %in% c("Fractional brownian motion")){
-        fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
-        predictors$fbm_raster <- fbm_raster
-      }
-      else if(input$nlm[i] %in% c("Gaussian random field")){
-        gaussian_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                            autocorr_range = 100,
-                                            mag_var = 8,
-                                            nug = 5)
-        predictors$gaussian_field <- gaussian_field
-      }
-      else if(input$nlm[i] %in% c("Polygonal landscapes")){
-        mosaictess <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
-        predictors$mosaictess <- mosaictess
-      }
-      else if(input$nlm[i] %in% c("Random neighbourhood")){
-        neigh_raster <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
-                                  p_empty = 0.1, categories = 5, neighbourhood = 8)
-        predictors$neigh_raster <- neigh_raster
-      }
-      else if(input$nlm[i] %in% c("Planar gradient")){
-        planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)
-        predictors$planar_gradient <- planar_gradient
-      }
-      else if(input$nlm[i] %in% c("Random")){
-        random <- nlm_random(ncol = 100, nrow = 100)
-        predictors$random <- random
-      }
-      else if(input$nlm[i] %in% c("Random cluster")){
-        random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
-                                            p = 0.4, ai = c(0.25, 0.25, 0.5))
-        predictors$random_cluster <- random_cluster
-      }
-      else if(input$nlm[i] %in% c("Random rectangular cluster")){
-        randomrectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
-                                                                  nrow = 100,
-                                                                  minl = 5,
-                                                                  maxl = 10)
-        predictors$randomrectangular_cluster <- randomrectangular_cluster
-      }
-    }
-    observeEvent(input$sim_outcome, {
-      print(nlayers(predictors))
-      names = character()
-      # print(names(predictors))
-      for (i in 1:nlayers(predictors)) {
-        names <- c(names, paste("pred_", i, sep=""))
-      }
-      # print(names)
-      names(predictors) <- names
-      print(names(predictors))
-      expression <- generate_random_function(predictors)
-      print(expression)
-      out_true <- eval(parse(text=expression))
-      names(out_true) <- "outcome"
-      
-      output$outcome <- renderPlot({
-        show_landscape(out_true)
-      })
-      observeEvent(input$gen_prediction, {
-        # Creating coordinate points to include them in the surface_data
-        coord_points <- point_grid
-        coord_points$x <- st_coordinates(coord_points)[,1]
-        coord_points$y <- st_coordinates(coord_points)[,2]
-        coord_stack <- rasterise_and_stack(coord_points, 
-                                           which(names(coord_points)%in%c("x","y")), 
-                                           c("coord1", "coord2"))
-        
-        # Stack all predictors
-        all_stack <- stack(out_true, predictors)
-        # Extracting all necessary information to create the training data
-        train_data <- as.data.frame(raster::extract(all_stack, train_points()))
-
-        # Adding the coord_stack to visualize it later
-        all_stack <- stack(out_true, predictors, coord_stack)
-
-        # Grid to predict surface, extract inner/outer grid indicator
-        surf_data <- as.data.frame(raster::extract(all_stack, point_grid))
-        print(head(surf_data))
-        # surf_data$area <- point_grid$areant_grid$area
-
-        # Create default model
-        model_default <- train(train_data,
-                               train_data$outcome,
-                               method = "rf",
-                               importance = TRUE,
-                               ntree = 500)
-        # print(model_default)
-        # model_default
-        prediction_default <- predict(all_stack, model_default)
-        output$prediction <- renderPlot({
-          show_landscape(prediction_default)
-        })
-        # show_landscape(outcome)
-        # dif_default <- outcome - prediction_default
-        # show_landscape(dif_default)
-        prediction_default_abs <- abs(prediction_default)
-        MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
-        print(MAE_default)
-
-      })
+  
+  observeEvent(input$sim_outcome, {
+    output$outcome <- renderPlot({
+      show_landscape(simulation())
     })
-    
-    # print(names(predictors))
-    # print(nlayers(predictors))
-    if (nlayers(predictors) != 0) {
-      show_landscape(predictors)
+  })
+  
+  observeEvent(input$gen_prediction, {
+    if (input$sim_outcome >=1) {
+      # Extracting all necessary information to create the training data
+      train_data <- as.data.frame(raster::extract(predictors(), train_points()))
+  
+      # Adding the coord_stack to visualize it later
+      all_stack <- stack(simulation(), predictors())
+      print(all_stack[,2:nlayers(predictors())])
+      # Grid to predict surface, extract inner/outer grid indicator
+      # surf_data <- as.data.frame(raster::extract(all_stack, point_grid))
+      # # print(head(surf_data))
+      # # surf_data$area <- point_grid$areant_grid$area
+      # 
+      # # Create default model
+      # model_default <- train(train_data[,predictors],
+      #                        train_data$outcome,
+      #                        method = "rf",
+      #                        importance = TRUE,
+      #                        ntree = 500)
+      # # print(model_default)
+      # # model_default
+      # prediction_default <- predict(all_stack, model_default)
+      # output$prediction <- renderPlot({
+      #   show_landscape(prediction_default)
+      # })
+      # # show_landscape(outcome)
+      # # dif_default <- outcome - prediction_default
+      # # show_landscape(dif_default)
+      # prediction_default_abs <- abs(prediction_default)
+      # MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
+      # print(MAE_default)
+      # output$mae <- renderText({
+      #   paste("MAE =", MAE_default, sep = " ")
+      # })
     }
-    })
+  })
 }
-
 # Create the Shiny app object --------------------------------------------------
 
 shinyApp(ui = ui, server = server)
