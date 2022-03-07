@@ -384,16 +384,7 @@ server <- function(input, output, session) {
       all_stack <- stack(simulation(), predictors())
       pred <- names(predictors())
       train_data <- as.data.frame(raster::extract(all_stack, train_points()))
-      # print(head(train_data))
-      # print(head(train_data$outcome))
-      # print(head(train_data[,pred]))
-      # Adding the coord_stack to visualize it later
-      # all_stack <- stack(simulation(), predictors())
-      # print(all_stack[,2:nlayers(predictors())])
-      # Grid to predict surface, extract inner/outer grid indicator
-      # surf_data <- as.data.frame(raster::extract(all_stack, point_grid))
-      # # print(head(surf_data))
-      # # surf_data$area <- point_grid$areant_grid$area
+      # id$areant_grid$area
       # 
       # Create default model
       model_default <- train(train_data[,pred],
@@ -404,12 +395,15 @@ server <- function(input, output, session) {
       print(varImp(model_default))
       # model_default
       prediction_default <- predict(all_stack, model_default)
+    
+      dif_default <- simulation() - prediction_default
+      result <- stack(prediction_default, dif_default)
+      print(names(result))
+      names(result) <- c("Prediction", "Difference")
       output$prediction <- renderPlot({
-        show_landscape(prediction_default)
+        show_landscape(result)
       })
-      # show_landscape(outcome)
-      # dif_default <- outcome - prediction_default
-      # show_landscape(dif_default)
+      
       prediction_default_abs <- abs(prediction_default)
       MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
       print(MAE_default)
