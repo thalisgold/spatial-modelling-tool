@@ -4,6 +4,7 @@ library(ggplot2)
 library(raster)
 library(caret)
 library(Metrics)
+library(sf)
 
 # Test grids
 # Create grids
@@ -176,6 +177,7 @@ randomrectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
 dimgrid <- 100
 rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
 point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
+n_train <- 50
 
 # Create study area
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
@@ -198,6 +200,11 @@ names(predictors) <- c("pred_1", "pred_2", "pred_3",
                        "pred_10")
 
 show_landscape(predictors)
+train_data <- as.data.frame(raster::extract(predictors, train_points))
+head(train_data)
+pred <- names(c("pred_1", "pred_2"))
+train_data[,pred]
+
 
 # Computing the output with a random function
 out_true <- predictors$pred_1*predictors$pred_2 + predictors$pred_10^2 - 
@@ -230,10 +237,10 @@ ggplot() +
   theme_bw()
 
 # Training points: Clust1
-train_clust1 <- clustered_sample(study_area, n_train/5, n_train*4/5, dimgrid*0.05)
-train_clust1 <- st_sf(geom=train_clust1)
+train_points <- clustered_sample(study_area, n_train/5, n_train*4/5, dimgrid*0.05)
+train_points <- st_sf(geom=train_points)
 ggplot() +
-  geom_sf(data = train_clust1, size = 1) +
+  geom_sf(data = train_points, size = 1) +
   geom_sf(data = study_area,  alpha = 0) +
   theme_bw()
 

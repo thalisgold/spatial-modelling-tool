@@ -7,6 +7,7 @@ library(NLMR)
 library(landscapetools)
 library(raster)
 library(caret)
+library(CAST)
 library(sf)
 
 
@@ -320,6 +321,7 @@ ui <- fluidPage(
       plotOutput(outputId = "trainingdata"),
       plotOutput(outputId = "outcome"),
       plotOutput(outputId = "prediction"),
+      plotOutput(outputId = "aoa"),
       textOutput(outputId = "mae"),
       br()
     )
@@ -338,16 +340,16 @@ server <- function(input, output, session) {
     simulation <- raster()
     names = character()
     predictors <- predictors()
-    print(names(predictors))
+    # print(names(predictors))
     for (i in 1:nlayers(predictors)) {
       names <- c(names, paste("pred_", i, sep=""))
     }
     # print(names)
     names(predictors) <- names
-    print(names(predictors))
+    # print(names(predictors))
     # print(names(predictors))
     expression <- generate_random_function(predictors)
-    print(expression)
+    # print(expression)
     simulation <- eval(parse(text=expression))
     names(simulation) <- "outcome"
     return(simulation)
@@ -378,37 +380,46 @@ server <- function(input, output, session) {
   observeEvent(input$gen_prediction, {
     if (input$sim_outcome >=1) {
       # Extracting all necessary information to create the training data
-      train_data <- as.data.frame(raster::extract(predictors(), train_points()))
-  
-      # Adding the coord_stack to visualize it later
+      # print(names(predictors()))
       all_stack <- stack(simulation(), predictors())
-      print(all_stack[,2:nlayers(predictors())])
+      pred <- names(predictors())
+      train_data <- as.data.frame(raster::extract(all_stack, train_points()))
+      # print(head(train_data))
+      # print(head(train_data$outcome))
+      # print(head(train_data[,pred]))
+      # Adding the coord_stack to visualize it later
+      # all_stack <- stack(simulation(), predictors())
+      # print(all_stack[,2:nlayers(predictors())])
       # Grid to predict surface, extract inner/outer grid indicator
       # surf_data <- as.data.frame(raster::extract(all_stack, point_grid))
       # # print(head(surf_data))
       # # surf_data$area <- point_grid$areant_grid$area
       # 
-      # # Create default model
-      # model_default <- train(train_data[,predictors],
-      #                        train_data$outcome,
-      #                        method = "rf",
-      #                        importance = TRUE,
-      #                        ntree = 500)
-      # # print(model_default)
-      # # model_default
-      # prediction_default <- predict(all_stack, model_default)
-      # output$prediction <- renderPlot({
-      #   show_landscape(prediction_default)
-      # })
-      # # show_landscape(outcome)
-      # # dif_default <- outcome - prediction_default
-      # # show_landscape(dif_default)
-      # prediction_default_abs <- abs(prediction_default)
-      # MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
-      # print(MAE_default)
-      # output$mae <- renderText({
-      #   paste("MAE =", MAE_default, sep = " ")
-      # })
+      # Create default model
+      model_default <- train(train_data[,pred],
+                             train_data$outcome,
+                             method = "rf",
+                             importance = TRUE,
+                             ntree = 500)
+      print(varImp(model_default))
+      # model_default
+      prediction_default <- predict(all_stack, model_default)
+      output$prediction <- renderPlot({
+        show_landscape(prediction_default)
+      })
+      # show_landscape(outcome)
+      # dif_default <- outcome - prediction_default
+      # show_landscape(dif_default)
+      prediction_default_abs <- abs(prediction_default)
+      MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
+      print(MAE_default)
+      output$mae <- renderText({
+        paste("MAE =", MAE_default, sep = " ")
+      })
+      aoa <- aoa(all_stack, model_default)
+      output$aoa <- renderPlot({
+        show_landscape(aoa)
+      })
     }
   })
 }
