@@ -9,6 +9,7 @@ library(raster)
 library(caret)
 library(CAST)
 library(sf)
+library(shinythemes)
 
 
 # Load functions ---------------------------------------------------------------
@@ -243,107 +244,112 @@ study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 #                                    c("coord1", "coord2"))
 # Define UI --------------------------------------------------------------------
 
-ui <- fluidPage(
-  br(),
-  
-  sidebarLayout(
-    sidebarPanel(
-      h4("Parameters for predictors"),
-      # sliderInput(
-      #   inputId = "n_predictors",
-      #   label = "Number of predictors:",
-      #   value = 11,
-      #   min = 2,
-      #   max = 20,
-      #   step = 1,
-      #   width = "100%"
-      # ),
-      
-      selectInput(
-        inputId = "nlm", label = "NLM:",
-        choices = c("Distance gradient", "Edge gradient", "Fractional brownian motion",
-                    "Gaussian random field", "Planar gradient", "Polygonal landscapes",
-                    "Random", "Random cluster", "Random neighbourhood", "Random rectangular cluster"),
-        multiple = TRUE
+ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("flatly"), 
+  tabPanel("App",
+    sidebarLayout(
+      sidebarPanel(
+        h4("Parameters for predictors"),
+        # sliderInput(
+        #   inputId = "n_predictors",
+        #   label = "Number of predictors:",
+        #   value = 11,
+        #   min = 2,
+        #   max = 20,
+        #   step = 1,
+        #   width = "100%"
+        # ),
+        
+        selectInput(
+          inputId = "nlm", label = "NLM:",
+          choices = c("Distance gradient", "Edge gradient", "Fractional brownian motion",
+                      "Gaussian random field", "Planar gradient", "Polygonal landscapes",
+                      "Random", "Random cluster", "Random neighbourhood", "Random rectangular cluster"),
+          multiple = TRUE
+        ),
+        
+        actionButton(
+          inputId = "generate_predictors", label = "Generate selected predictors"
+        ),
+        
+        p(),
+        
+        actionButton(
+          inputId = "sim_outcome", label = "Simulate outcome"
+        ),
+        
+        h4("Parameters for training data"),
+        numericInput(
+          inputId = "n_trainingdata",
+          label = "Number of sampling points:",
+          value = 50,
+          min = 50,
+          max = 250,
+          step = 50,
+          width = "60%"
+        ),
+        selectInput(
+          inputId = "dist_trainingdata", label = "Distribution of sampling points:",
+          choices = c("Random" = "random",
+                      "Regular" = "regular",
+                      "Weak clustering" ="clust1",
+                      "Strong clustering" ="clust2",
+                      "Non-uniform" ="nonunif"),
+          selected = "Random"
+        ),
+        
+        actionButton(
+          inputId = "gen_prediction", label = "Generate prediction"
+        ),
+        
+        h4("Modelling"),
+        radioButtons(
+          inputId = "algorithm", label = "Choose algorithm for training:",
+          choices = c("Random Forest", "Support Vector Machines"),
+          selected = "Random Forest"
+        ),
+        selectInput(
+          inputId = "cv_method", label = "Cross-validation method:",
+          choices = c("Random", "Spatial"),
+          selected = "Spatial"
+        ),
+        selectInput(
+          inputId = "variableSelection", label = "Variable Selection:",
+          choices = c("None", "FFS", "RFE"),
+          selected = "None"
+        )
       ),
       
-      actionButton(
-        inputId = "generate_predictors", label = "Generate selected predictors"
-      ),
-      actionButton(
-        inputId = "sim_outcome", label = "Simulate outcome"
-      ),
-      
-      h4("Parameters for training data"),
-      numericInput(
-        inputId = "n_trainingdata",
-        label = "Number of sampling points:",
-        value = 50,
-        min = 50,
-        max = 250,
-        step = 50,
-        width = "60%"
-      ),
-      selectInput(
-        inputId = "dist_trainingdata", label = "Distribution of sampling points:",
-        choices = c("Random" = "random",
-                    "Regular" = "regular",
-                    "Weak clustering" ="clust1",
-                    "Strong clustering" ="clust2",
-                    "Non-uniform" ="nonunif"),
-        selected = "Random"
-      ),
-      
-      actionButton(
-        inputId = "gen_prediction", label = "Generate prediction"
-      ),
-      
-      h4("Modelling"),
-      radioButtons(
-        inputId = "algorithm", label = "Choose algorithm for training:",
-        choices = c("Random Forest", "Support Vector Machines"),
-        selected = "Random Forest"
-      ),
-      selectInput(
-        inputId = "cv_method", label = "Cross-validation method:",
-        choices = c("Random", "Spatial"),
-        selected = "Spatial"
-      ),
-      selectInput(
-        inputId = "variableSelection", label = "Variable Selection:",
-        choices = c("None", "FFS", "RFE"),
-        selected = "None"
+      mainPanel(
+        wellPanel(
+          fluidRow(title = "Predictors and training data",
+            column(6, plotOutput(outputId = "predictors")),
+            column(6, plotOutput(outputId = "trainingdata"))
+          )
+        ),
+        wellPanel(
+          fluidRow(
+            column(6, plotOutput(outputId = "outcome")),
+            column(6, plotOutput(outputId = "prediction"))
+          )
+        ),
+        wellPanel(
+          fluidRow(
+            column(6, plotOutput(outputId = "difference")),
+            column(6, textOutput(outputId = "mae")),
+          )
+        ),
+        wellPanel(
+          fluidRow(
+            column(6, plotOutput(outputId = "aoa")),
+            column(6, plotOutput(outputId = "di")),
+          )
+        ),
+        br()
       )
-    ),
-    
-    mainPanel(
-      wellPanel(
-        fluidRow(title = "Predictors and training data",
-          column(6, plotOutput(outputId = "predictors")),
-          column(6, plotOutput(outputId = "trainingdata"))
-        )
-      ),
-      wellPanel(
-        fluidRow(
-          column(6, plotOutput(outputId = "outcome")),
-          column(6, plotOutput(outputId = "prediction"))
-        )
-      ),
-      wellPanel(
-        fluidRow(
-          column(6, plotOutput(outputId = "difference")),
-          column(6, textOutput(outputId = "mae")),
-        )
-      ),
-      wellPanel(
-        fluidRow(
-          column(6, plotOutput(outputId = "aoa")),
-          column(6, plotOutput(outputId = "di")),
-        )
-      ),
-      br()
     )
-  )
+  ),
+  tabPanel("Documentation"),
+  tabPanel("Demo"),
 )
 
 # Define server ----------------------------------------------------------------
