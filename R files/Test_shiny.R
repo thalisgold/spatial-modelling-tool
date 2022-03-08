@@ -235,12 +235,12 @@ point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
 # Create sampling areas
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 # Creating coordinate points to include them in the surface_data
-coord_points <- point_grid
-coord_points$x <- st_coordinates(coord_points)[,1]
-coord_points$y <- st_coordinates(coord_points)[,2]
-coord_stack <- rasterise_and_stack(coord_points,
-                                   which(names(coord_points)%in%c("x","y")),
-                                   c("coord1", "coord2"))
+# coord_points <- point_grid
+# coord_points$x <- st_coordinates(coord_points)[,1]
+# coord_points$y <- st_coordinates(coord_points)[,2]
+# coord_stack <- rasterise_and_stack(coord_points,
+#                                    which(names(coord_points)%in%c("x","y")),
+#                                    c("coord1", "coord2"))
 # Define UI --------------------------------------------------------------------
 
 ui <- fluidPage(
@@ -392,13 +392,13 @@ server <- function(input, output, session) {
                              method = "rf",
                              importance = TRUE,
                              ntree = 500)
-      print(varImp(model_default))
+      # print(varImp(model_default))
       # model_default
       prediction_default <- predict(all_stack, model_default)
     
       dif_default <- simulation() - prediction_default
       result <- stack(prediction_default, dif_default)
-      print(names(result))
+      # print(names(result))
       names(result) <- c("Prediction", "Difference")
       output$prediction <- renderPlot({
         show_landscape(result)
