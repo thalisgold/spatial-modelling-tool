@@ -156,7 +156,7 @@ generate_random_function <- function(predictors) {
   return(expression)
 }
 
-generate_train_points <- function(n_trainingdata, dist_trainingdata){
+generate_sampling_points <- function(n_trainingdata, dist_trainingdata){
   if(dist_trainingdata %in% c("clust1")){
     train_points <- clustered_sample(study_area, n_trainingdata/5, n_trainingdata*4/5, dimgrid*0.05)
   }else if(dist_trainingdata %in% c("clust2")){
@@ -279,7 +279,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         h4("Parameters for training data"),
         numericInput(
-          inputId = "n_trainingdata",
+          inputId = "n_sampling_points",
           label = "Number of sampling points:",
           value = 50,
           min = 50,
@@ -287,18 +287,15 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           step = 50,
           width = "60%"
         ),
+        
         selectInput(
-          inputId = "dist_trainingdata", label = "Distribution of sampling points:",
+          inputId = "dist_sampling_points", label = "Distribution of sampling points:",
           choices = c("Random" = "random",
                       "Regular" = "regular",
                       "Weak clustering" ="clust1",
                       "Strong clustering" ="clust2",
                       "Non-uniform" ="nonunif"),
           selected = "Random"
-        ),
-        
-        actionButton(
-          inputId = "gen_prediction", label = "Generate prediction"
         ),
         
         h4("Modelling"),
@@ -316,28 +313,41 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           inputId = "variableSelection", label = "Variable Selection:",
           choices = c("None", "FFS", "RFE"),
           selected = "None"
-        )
+        ),
+        actionButton(
+          inputId = "gen_prediction", label = "Generate prediction"
+        ),
       ),
       
       mainPanel(
+        h4("Predictors and sampling points"),
         wellPanel(
-          fluidRow(title = "Predictors and training data",
+          fluidRow(
             column(6, plotOutput(outputId = "predictors")),
-            column(6, plotOutput(outputId = "trainingdata"))
+            column(6, plotOutput(outputId = "sampling_points"))
           )
         ),
+        h4("Training data"),
+        wellPanel(
+          fluidRow(
+           column(12, dataTableOutput(outputId = "training_data")),
+          )
+        ),
+        h4("Simulated outcome and prediction"),
         wellPanel(
           fluidRow(
             column(6, plotOutput(outputId = "outcome")),
             column(6, plotOutput(outputId = "prediction"))
           )
         ),
+        h4("Absolute difference and mean absolute error"),
         wellPanel(
           fluidRow(
             column(6, plotOutput(outputId = "difference")),
             column(6, textOutput(outputId = "mae")),
           )
         ),
+        h4("Area of Applicability and dissimilarity index"),
         wellPanel(
           fluidRow(
             column(6, plotOutput(outputId = "aoa")),
@@ -379,18 +389,18 @@ server <- function(input, output, session) {
     return(simulation)
   })
   
-  train_points <- reactive({
-    req(input$n_trainingdata, input$dist_trainingdata)
-    generate_train_points(input$n_trainingdata, input$dist_trainingdata)
+  sampling_points <- reactive({
+    req(input$n_sampling_points, input$dist_sampling_points)
+    generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
   })
   
   output$predictors <- renderPlot({
       show_landscape(predictors())
   })
   
-  output$trainingdata <- renderPlot({
+  output$sampling_points <- renderPlot({
     ggplot() +
-      geom_sf(data = train_points(), size = 1) +
+      geom_sf(data = sampling_points(), size = 1) +
       geom_sf(data = study_area,  alpha = 0) +
       theme_bw()
   })
@@ -407,12 +417,13 @@ server <- function(input, output, session) {
       # print(names(predictors()))
       all_stack <- stack(simulation(), predictors())
       pred <- names(predictors())
-      train_data <- as.data.frame(raster::extract(all_stack, train_points()))
+      training_data <- as.data.frame(raster::extract(all_stack, sampling_points()))
+      output$training_data <- renderDataTable(expr = training_data)
       # id$areant_grid$area
       # 
       # Create default model
-      model_default <- train(train_data[,pred],
-                             train_data$outcome,
+      model_default <- train(training_data[,pred],
+                             training_data$outcome,
                              method = "rf",
                              importance = TRUE,
                              ntree = 500)
@@ -438,7 +449,7 @@ server <- function(input, output, session) {
         paste("MAE =", MAE_default, sep = " ")
       })
       aoa <- aoa(all_stack, model_default)
-      print(names(aoa))
+      # print(names(aoa))
       output$aoa <- renderPlot({
         show_landscape(aoa$AOA)
       })
