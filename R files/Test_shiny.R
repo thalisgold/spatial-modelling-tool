@@ -327,12 +327,6 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
             column(6, plotOutput(outputId = "sampling_points"))
           )
         ),
-        h4("Training data"),
-        wellPanel(
-          fluidRow(
-           column(12, dataTableOutput(outputId = "training_data")),
-          )
-        ),
         h4("Simulated outcome and prediction"),
         wellPanel(
           fluidRow(
@@ -352,6 +346,12 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           fluidRow(
             column(6, plotOutput(outputId = "aoa")),
             column(6, plotOutput(outputId = "di")),
+          )
+        ),
+        h4("Training data"),
+        wellPanel(
+          fluidRow(
+            column(12, dataTableOutput(outputId = "training_data")),
           )
         ),
         br()
