@@ -317,12 +317,28 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      plotOutput(outputId = "predictors"),
-      plotOutput(outputId = "trainingdata"),
-      plotOutput(outputId = "outcome"),
-      plotOutput(outputId = "prediction"),
-      plotOutput(outputId = "aoa"),
-      textOutput(outputId = "mae"),
+      wellPanel(
+        fluidRow(title = "Predictors and training data",
+          column(6, plotOutput(outputId = "predictors")),
+          column(6, plotOutput(outputId = "trainingdata"))
+        )
+      ),
+      wellPanel(
+        fluidRow(
+          column(6, plotOutput(outputId = "outcome")),
+          column(6, plotOutput(outputId = "prediction"))
+        )
+      ),
+      wellPanel(
+        fluidRow(
+          column(12, plotOutput(outputId = "aoa")),
+        )
+      ),
+      wellPanel(
+        fluidRow(
+          column(12, textOutput(outputId = "mae"))
+        )
+      ),
       br()
     )
   )
