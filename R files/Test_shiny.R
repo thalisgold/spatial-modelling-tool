@@ -331,12 +331,14 @@ ui <- fluidPage(
       ),
       wellPanel(
         fluidRow(
-          column(12, plotOutput(outputId = "aoa")),
+          column(6, plotOutput(outputId = "difference")),
+          column(6, textOutput(outputId = "mae")),
         )
       ),
       wellPanel(
         fluidRow(
-          column(12, textOutput(outputId = "mae"))
+          column(6, plotOutput(outputId = "aoa")),
+          column(6, plotOutput(outputId = "di")),
         )
       ),
       br()
@@ -413,11 +415,14 @@ server <- function(input, output, session) {
       prediction_default <- predict(all_stack, model_default)
     
       dif_default <- simulation() - prediction_default
-      result <- stack(prediction_default, dif_default)
+      # result <- stack(prediction_default, dif_default)
       # print(names(result))
-      names(result) <- c("Prediction", "Difference")
+      # names(result) <- c("Prediction", "Difference")
       output$prediction <- renderPlot({
-        show_landscape(result)
+        show_landscape(prediction_default)
+      })
+      output$difference <- renderPlot({
+        show_landscape(dif_default)
       })
       
       prediction_default_abs <- abs(prediction_default)
@@ -427,8 +432,12 @@ server <- function(input, output, session) {
         paste("MAE =", MAE_default, sep = " ")
       })
       aoa <- aoa(all_stack, model_default)
+      print(names(aoa))
       output$aoa <- renderPlot({
-        show_landscape(aoa)
+        show_landscape(aoa$AOA)
+      })
+      output$di <- renderPlot({
+        show_landscape(aoa$DI)
       })
     }
   })
