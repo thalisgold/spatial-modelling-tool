@@ -428,6 +428,7 @@ server <- function(input, output, session) {
                              importance = TRUE,
                              ntree = 500)
       # print(varImp(model_default))
+      print(model_default)
       # model_default
       prediction_default <- predict(all_stack, model_default)
     
