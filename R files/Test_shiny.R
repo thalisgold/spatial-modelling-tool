@@ -228,6 +228,8 @@ generate_predictors <- function(nlm){
   return(predictors)
 }
 
+normalize <- function(x){(x-minValue(x))/(maxValue(x)-minValue(x))}
+
 # Load data --------------------------------------------------------------------
 # Create grids
 dimgrid <- 100
@@ -388,7 +390,7 @@ server <- function(input, output, session) {
       nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
       simulation <- raster()
       expression <- generate_random_function(nlms_for_outcome)
-      simulation <- eval(parse(text=expression))
+      simulation <- normalize(eval(parse(text=expression)))
       names(simulation) <- "outcome"
       return(simulation)
     }

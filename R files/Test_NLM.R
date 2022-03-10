@@ -438,4 +438,10 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
 }
 
 
+s = sort(rexp(100))
+s
+
+normalize <- function(x){(x-minValue(x))/(maxValue(x)-minValue(x))}
+
+normalize(new)
 
