@@ -157,19 +157,20 @@ generate_random_function <- function(raster_stack) {
 }
 
 generate_sampling_points <- function(n_trainingdata, dist_trainingdata){
-  if(dist_trainingdata %in% c("clust1")){
-    train_points <- clustered_sample(study_area, n_trainingdata/5, n_trainingdata*4/5, dimgrid*0.05)
-  }else if(dist_trainingdata %in% c("clust2")){
-    train_points <- clustered_sample(study_area, n_trainingdata/10, n_trainingdata*9/10, dimgrid*0.05)
-  }else if(dist_trainingdata %in% c("nonunif")){
+  # if(dist_trainingdata %in% c("clust1")){
+  #   sampling_points <- clustered_sample(study_area, n_trainingdata/5, n_trainingdata*4/5, 15)
+  # }else if(dist_trainingdata %in% c("clust2")){
+  #   sampling_points <- clustered_sample(study_area, n_trainingdata/10, n_trainingdata*9/10, dimgrid*0.05)
+  # }
+  if(dist_trainingdata %in% c("nonunif")){
     nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
-    train_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_trainingdata, type = "random")
-    train_points <- st_sf(geom=train_points)
+    sampling_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_trainingdata, type = "random")
+    sampling_points <- st_sf(geom=sampling_points)
   }else{
-    train_points <- st_sample(study_area, n_trainingdata, type = dist_trainingdata)
-    train_points <- st_sf(geom=train_points)
+    sampling_points <- st_sample(study_area, n_trainingdata, type = dist_trainingdata)
+    sampling_points <- st_sf(geom=sampling_points)
   }
-  return(train_points)
+  return(sampling_points)
 }
 
 generate_predictors <- function(nlm){
@@ -262,7 +263,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         # ),
         
         selectInput(
-          inputId = "nlm", label = "NLMs:",
+          inputId = "nlm", label = "Choose some NLMs as predictors:",
           choices = c("Distance gradient" = "distance_gradient",
                       "Edge gradient" = "edge_gradient",
                       "Fractional brownian motion" = "fbm_raster",
@@ -276,16 +277,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           multiple = TRUE
         ),
         
-        actionButton(
-          inputId = "generate_predictors", label = "Generate selected predictors"
+        conditionalPanel(condition = "input.nlm.length >= 2",
+          actionButton(
+            inputId = "generate_predictors", label = "Generate selected predictors"
+          )
         ),
         
         p(),
         
-        uiOutput("secondSelection"),
+        uiOutput("nlms_for_outcome"),
         
-        actionButton(
-          inputId = "sim_outcome", label = "Simulate outcome"
+        conditionalPanel(condition = "input.nlms_for_outcome.length >= 2",
+          actionButton(
+            inputId = "sim_outcome", label = "Simulate outcome"
+          )
         ),
         
         h4("Parameters for training data"),
@@ -303,11 +308,15 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           inputId = "dist_sampling_points", label = "Distribution of sampling points:",
           choices = c("Random" = "random",
                       "Regular" = "regular",
-                      "Weak clustering" ="clust1",
-                      "Strong clustering" ="clust2",
-                      "Non-uniform" ="nonunif"),
+                      "Clustered" = "clustered",
+                      "Non-uniform" = "nonunif"),
           selected = "Random"
         ),
+        conditionalPanel( condition = "output.nrows",
+                          checkboxInput("headonly", "Only use first 1000 rows")),
+        
+        uiOutput("n_parents"),
+        uiOutput("n_offsprings"),
         
         h4("Modelling"),
         radioButtons(
@@ -325,9 +334,9 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           choices = c("None", "FFS", "RFE"),
           selected = "None"
         ),
-        actionButton(
-          inputId = "gen_prediction", label = "Generate prediction"
-        ),
+        
+        uiOutput("gen_prediction"),
+
       ),
       
       mainPanel(
@@ -376,7 +385,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
-  output$secondSelection <- renderUI({
+  datasetInput <- reactive({
+    switch(input$dist_sampling_points,
+           "random" = random,
+           "regular" = regular,
+           "clustered" = clustered,
+           "nonunif" = nonunif)
+  })
+  
+  output$nrows <- reactive({
+    nrow(datasetInput())
+  })
+  
+  outputOptions(output, "nrows", suspendWhenHidden = FALSE)  
+  output$nlms_for_outcome <- renderUI({
     selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE)
     })
   
@@ -386,19 +408,55 @@ server <- function(input, output, session) {
   })
   
   simulation <- eventReactive(input$sim_outcome, {
-    if (length(input$nlms_for_outcome) >= 2) {
-      nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
-      simulation <- raster()
-      expression <- generate_random_function(nlms_for_outcome)
-      simulation <- normalize(eval(parse(text=expression)))
-      names(simulation) <- "outcome"
-      return(simulation)
-    }
+    nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
+    simulation <- raster()
+    expression <- generate_random_function(nlms_for_outcome)
+    simulation <- normalize(eval(parse(text=expression)))
+    names(simulation) <- "outcome"
+    output$gen_prediction <- renderUI({
+      actionButton(
+        inputId = "gen_prediction", label = "Generate prediction"
+      )
+    })
+    return(simulation)
   })
+  
   
   sampling_points <- reactive({
     req(input$n_sampling_points, input$dist_sampling_points)
-    generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
+    if (input$dist_sampling_points != "clustered"){
+      generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
+    }
+    # else{
+    #   output$n_parents <- renderUI({
+    #     sliderInput(inputId = "n_parents",
+    #                 label = "Number of parents:",
+    #                 value = 10,
+    #                 min = 5,
+    #                 max = 20,
+    #                 step = 1,
+    #                 width = "80%"
+    #               )
+    #   })
+    #   output$n_offsprings <- renderUI({
+    #     sliderInput(inputId = "n_offsprings",
+    #                 label = "Number of offsprings:",
+    #                 value = 40,
+    #                 min = 5,
+    #                 max = 200,
+    #                 step = 1,
+    #                 width = "80%"
+    #     )
+    #   })
+    #   print(input$n_parents)
+    #   print(input$n_offsprings)
+    #   if (is.null(input$parents)){
+    #     sampling_points <- clustered_sample(study_area, 10, 40, dimgrid * 0.05)
+    #   }
+    #   else {
+    #     sampling_points <- clustered_sample(study_area, input$n_parents, input$offsprings, dimgrid *0.05)
+    #   }
+    # }
   })
   
   output$predictors <- renderPlot({
