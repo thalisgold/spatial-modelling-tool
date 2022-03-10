@@ -145,14 +145,14 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
 }
 
 # +, -, *, /, ^2
-generate_random_function <- function(predictors) {
+generate_random_function <- function(raster_stack) {
   operands = c("+", "-", "*", "^2 +", "^3 -", "^2 *", "^2 -", "^3 +")
   expression = ""
-  for (i in 1:(nlayers(predictors)-1)){
-    expression <- paste(expression, paste("predictors$", names(predictors)[i], sep=""), sep = " ")
+  for (i in 1:(nlayers(raster_stack)-1)){
+    expression <- paste(expression, paste(as.character(substitute(raster_stack)), "$", names(raster_stack)[i], sep=""), sep = " ")
     expression <- paste(expression, sample(operands, 1), sep = " ")
   }
-  expression <- paste(expression, paste("predictors$", names(predictors)[nlayers(predictors)], sep=""), sep = " ")
+  expression <- paste(expression, paste(as.character(substitute(raster_stack)), "$", names(raster_stack)[nlayers(raster_stack)], sep=""), sep = " ")
   return(expression)
 }
 
@@ -175,54 +175,54 @@ generate_sampling_points <- function(n_trainingdata, dist_trainingdata){
 generate_predictors <- function(nlm){
   predictors <- stack()
   for (i in 1:length(nlm)) {
-    if (nlm[i] %in% c("Distance gradient")){
+    if (nlm[i] %in% c("distance_gradient")){
       distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
                                                 origin = c(80, 10, 40, 5))
       predictors$distance_gradient <- distance_gradient
     }
-    else if(nlm[i] %in% c("Edge gradient")){
+    else if(nlm[i] %in% c("edge_gradient")){
       edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 30)
       predictors$edge_gradient <- edge_gradient
     }
-    else if(nlm[i] %in% c("Fractional brownian motion")){
+    else if(nlm[i] %in% c("fbm_raster")){
       fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
       predictors$fbm_raster <- fbm_raster
     }
-    else if(nlm[i] %in% c("Gaussian random field")){
+    else if(nlm[i] %in% c("gaussian_field")){
       gaussian_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
                                           autocorr_range = 100,
                                           mag_var = 8,
                                           nug = 5)
       predictors$gaussian_field <- gaussian_field
     }
-    else if(nlm[i] %in% c("Polygonal landscapes")){
+    else if(nlm[i] %in% c("mosaictess")){
       mosaictess <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
       predictors$mosaictess <- mosaictess
     }
-    else if(nlm[i] %in% c("Random neighbourhood")){
+    else if(nlm[i] %in% c("neigh_raster")){
       neigh_raster <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
                                 p_empty = 0.1, categories = 5, neighbourhood = 8)
       predictors$neigh_raster <- neigh_raster
     }
-    else if(nlm[i] %in% c("Planar gradient")){
+    else if(nlm[i] %in% c("planar_gradient")){
       planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)
       predictors$planar_gradient <- planar_gradient
     }
-    else if(nlm[i] %in% c("Random")){
+    else if(nlm[i] %in% c("random")){
       random <- nlm_random(ncol = 100, nrow = 100)
       predictors$random <- random
     }
-    else if(nlm[i] %in% c("Random cluster")){
+    else if(nlm[i] %in% c("random_cluster")){
       random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
                                           p = 0.4, ai = c(0.25, 0.25, 0.5))
       predictors$random_cluster <- random_cluster
     }
-    else if(nlm[i] %in% c("Random rectangular cluster")){
-      randomrectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
+    else if(nlm[i] %in% c("random_rectangular_cluster")){
+      random_rectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
                                                                 nrow = 100,
                                                                 minl = 5,
                                                                 maxl = 10)
-      predictors$randomrectangular_cluster <- randomrectangular_cluster
+      predictors$random_rectangular_cluster <- random_rectangular_cluster
     }
   }
   return(predictors)
@@ -260,10 +260,17 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         # ),
         
         selectInput(
-          inputId = "nlm", label = "NLM:",
-          choices = c("Distance gradient", "Edge gradient", "Fractional brownian motion",
-                      "Gaussian random field", "Planar gradient", "Polygonal landscapes",
-                      "Random", "Random cluster", "Random neighbourhood", "Random rectangular cluster"),
+          inputId = "nlm", label = "NLMs:",
+          choices = c("Distance gradient" = "distance_gradient",
+                      "Edge gradient" = "edge_gradient",
+                      "Fractional brownian motion" = "fbm_raster",
+                      "Gaussian random field" = "gaussian_field",
+                      "Planar gradient" = "planar_gradient",
+                      "Polygonal landscapes" = "mosaictess",
+                      "Random" = "random",
+                      "Random cluster" = "random_cluster",
+                      "Random neighbourhood" = "neigh_raster",
+                      "Random rectangular cluster" = "random_rectangular_cluster"),
           multiple = TRUE
         ),
         
@@ -272,6 +279,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         ),
         
         p(),
+        
+        uiOutput("secondSelection"),
         
         actionButton(
           inputId = "sim_outcome", label = "Simulate outcome"
@@ -365,28 +374,24 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
+  output$secondSelection <- renderUI({
+    selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE)
+    })
+  
   predictors <- eventReactive(input$generate_predictors, {
     req(input$nlm)
     generate_predictors(input$nlm)
   })
   
   simulation <- eventReactive(input$sim_outcome, {
-    simulation <- raster()
-    names = character()
-    predictors <- predictors()
-    # print(names(predictors))
-    for (i in 1:nlayers(predictors)) {
-      names <- c(names, paste("pred_", i, sep=""))
+    if (length(input$nlms_for_outcome) >= 2) {
+      nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
+      simulation <- raster()
+      expression <- generate_random_function(nlms_for_outcome)
+      simulation <- eval(parse(text=expression))
+      names(simulation) <- "outcome"
+      return(simulation)
     }
-    # print(names)
-    names(predictors) <- names
-    # print(names(predictors))
-    # print(names(predictors))
-    expression <- generate_random_function(predictors)
-    # print(expression)
-    simulation <- eval(parse(text=expression))
-    names(simulation) <- "outcome"
-    return(simulation)
   })
   
   sampling_points <- reactive({
@@ -427,7 +432,7 @@ server <- function(input, output, session) {
                              method = "rf",
                              importance = TRUE,
                              ntree = 500)
-      # print(varImp(model_default))
+      print(varImp(model_default))
       print(model_default)
       # model_default
       prediction_default <- predict(all_stack, model_default)
