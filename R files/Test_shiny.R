@@ -252,16 +252,6 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
     sidebarLayout(
       sidebarPanel(
         h4("Parameters for predictors"),
-        # sliderInput(
-        #   inputId = "n_predictors",
-        #   label = "Number of predictors:",
-        #   value = 11,
-        #   min = 2,
-        #   max = 20,
-        #   step = 1,
-        #   width = "100%"
-        # ),
-        
         selectInput(
           inputId = "nlm", label = "Choose some NLMs as predictors:",
           choices = c("Distance gradient" = "distance_gradient",
@@ -294,29 +284,53 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         ),
         
         h4("Parameters for training data"),
-        numericInput(
-          inputId = "n_sampling_points",
-          label = "Number of sampling points:",
-          value = 50,
-          min = 50,
-          max = 250,
-          step = 50,
-          width = "60%"
-        ),
-        
         selectInput(
           inputId = "dist_sampling_points", label = "Distribution of sampling points:",
-          choices = c("Random" = "random",
-                      "Regular" = "regular",
-                      "Clustered" = "clustered",
-                      "Non-uniform" = "nonunif"),
-          selected = "Random"
+          choices = c("Clustered" = "clustered",
+                      "Non-uniform" = "nonunif",
+                      "Random" = "random",
+                      "Regular" = "regular"),
+          selected = "random"
         ),
-        conditionalPanel( condition = "output.nrows",
-                          checkboxInput("headonly", "Only use first 1000 rows")),
         
-        uiOutput("n_parents"),
-        uiOutput("n_offsprings"),
+        conditionalPanel(condition = "output.clustered",
+          sliderInput(inputId = "n_parents",
+            label = "Number of parents:",
+            value = 10,
+            min = 1,
+            max = 20,
+            step = 1,
+            width = "100%"
+          ),
+          sliderInput(inputId = "n_offsprings",
+            label = "Number of offsprings:",
+            value = 40,
+            min = 10,
+            max = 250,
+            step = 1,
+            width = "100%"
+          ),
+          sliderInput(inputId = "radius",
+                      label = "Radius:",
+                      value = 5,
+                      min = 1,
+                      max = 8,
+                      step = 1,
+                      width = "100%"
+          )
+        ),
+        
+        conditionalPanel(condition = "!output.clustered",
+          numericInput(
+            inputId = "n_sampling_points",
+            label = "Number of sampling points:",
+            value = 50,
+            min = 50,
+            max = 250,
+            step = 50,
+            width = "60%"
+          )
+        ),
         
         h4("Modelling"),
         radioButtons(
@@ -324,11 +338,13 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           choices = c("Random Forest", "Support Vector Machines"),
           selected = "Random Forest"
         ),
+        
         selectInput(
           inputId = "cv_method", label = "Cross-validation method:",
           choices = c("Random", "Spatial"),
           selected = "Spatial"
         ),
+        
         selectInput(
           inputId = "variableSelection", label = "Variable Selection:",
           choices = c("None", "FFS", "RFE"),
@@ -385,26 +401,17 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
-  datasetInput <- reactive({
-    switch(input$dist_sampling_points,
-           "random" = random,
-           "regular" = regular,
-           "clustered" = clustered,
-           "nonunif" = nonunif)
-  })
-  
-  output$nrows <- reactive({
-    nrow(datasetInput())
-  })
-  
-  outputOptions(output, "nrows", suspendWhenHidden = FALSE)  
-  output$nlms_for_outcome <- renderUI({
-    selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE)
-    })
-  
   predictors <- eventReactive(input$generate_predictors, {
     req(input$nlm)
     generate_predictors(input$nlm)
+  })
+  
+  output$predictors <- renderPlot({
+    show_landscape(predictors())
+  })
+  
+  output$nlms_for_outcome <- renderUI({
+    selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE)
   })
   
   simulation <- eventReactive(input$sim_outcome, {
@@ -421,46 +428,36 @@ server <- function(input, output, session) {
     return(simulation)
   })
   
+  observeEvent(input$sim_outcome, {
+    output$outcome <- renderPlot({
+      show_landscape(simulation())
+    })
+  })
+  
+  datasetInput <- reactive({
+    switch(input$dist_sampling_points,
+           "random",
+           "regular",
+           "clustered",
+           "nonunif")
+  })
+  
+  output$clustered <- reactive({
+    if (input$dist_sampling_points == "clustered")
+      return(TRUE)
+  })
+  
+  outputOptions(output, "clustered", suspendWhenHidden = FALSE) 
+  
   
   sampling_points <- reactive({
     req(input$n_sampling_points, input$dist_sampling_points)
     if (input$dist_sampling_points != "clustered"){
-      generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
+      sampling_points <- generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
     }
-    # else{
-    #   output$n_parents <- renderUI({
-    #     sliderInput(inputId = "n_parents",
-    #                 label = "Number of parents:",
-    #                 value = 10,
-    #                 min = 5,
-    #                 max = 20,
-    #                 step = 1,
-    #                 width = "80%"
-    #               )
-    #   })
-    #   output$n_offsprings <- renderUI({
-    #     sliderInput(inputId = "n_offsprings",
-    #                 label = "Number of offsprings:",
-    #                 value = 40,
-    #                 min = 5,
-    #                 max = 200,
-    #                 step = 1,
-    #                 width = "80%"
-    #     )
-    #   })
-    #   print(input$n_parents)
-    #   print(input$n_offsprings)
-    #   if (is.null(input$parents)){
-    #     sampling_points <- clustered_sample(study_area, 10, 40, dimgrid * 0.05)
-    #   }
-    #   else {
-    #     sampling_points <- clustered_sample(study_area, input$n_parents, input$offsprings, dimgrid *0.05)
-    #   }
-    # }
-  })
-  
-  output$predictors <- renderPlot({
-      show_landscape(predictors())
+    else{
+      sampling_points <- clustered_sample(study_area, input$n_parents, input$n_offsprings, input$radius)
+    }
   })
   
   output$sampling_points <- renderPlot({
@@ -468,12 +465,6 @@ server <- function(input, output, session) {
       geom_sf(data = sampling_points(), size = 1) +
       geom_sf(data = study_area,  alpha = 0) +
       theme_bw()
-  })
-  
-  observeEvent(input$sim_outcome, {
-    output$outcome <- renderPlot({
-      show_landscape(simulation())
-    })
   })
   
   observeEvent(input$gen_prediction, {
