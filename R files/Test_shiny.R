@@ -428,7 +428,7 @@ server <- function(input, output, session) {
       r_noise <- setValues(r_noise, vals)
       simulation <- simulation + r_noise
     }
-    else if (input$s_noise == TRUE){
+    if (input$s_noise == TRUE){
       variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
       gstat_mod <- gstat(formula = z~1, dummy = TRUE, beta = 0, model = variog_mod, nmax = 100)
       s_noise <- predict(gstat_mod, point_grid, nsim = 1)
