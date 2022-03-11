@@ -10,6 +10,7 @@ library(caret)
 library(CAST)
 library(sf)
 library(shinythemes)
+library(gstat)
 
 
 # Load functions ---------------------------------------------------------------
@@ -276,6 +277,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         p(),
         
         uiOutput("nlms_for_outcome"),
+        checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
+        checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
         
         conditionalPanel(condition = "input.nlms_for_outcome.length >= 2",
           actionButton(
@@ -418,13 +421,27 @@ server <- function(input, output, session) {
     nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
     simulation <- raster()
     expression <- generate_random_function(nlms_for_outcome)
-    simulation <- normalize(eval(parse(text=expression)))
-    names(simulation) <- "outcome"
+    simulation <- eval(parse(text=expression))
+    if (input$r_noise == TRUE){
+      r_noise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
+      vals <- rnorm(dimgrid*dimgrid, sd=1)
+      r_noise <- setValues(r_noise, vals)
+      simulation <- simulation + r_noise
+    }
+    else if (input$s_noise == TRUE){
+      variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
+      gstat_mod <- gstat(formula = z~1, dummy = TRUE, beta = 0, model = variog_mod, nmax = 100)
+      s_noise <- predict(gstat_mod, point_grid, nsim = 1)
+      s_noise <- rasterFromXYZ(cbind(st_coordinates(s_noise),
+                                    as.matrix(as.data.frame(s_noise)[,1], ncol=1)))
+      simulation <- simulation + s_noise
+    }
     output$gen_prediction <- renderUI({
       actionButton(
         inputId = "gen_prediction", label = "Generate prediction"
       )
     })
+    simulation <- normalize(simulation)
     return(simulation)
   })
   

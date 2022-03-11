@@ -5,6 +5,7 @@ library(raster)
 library(caret)
 library(Metrics)
 library(sf)
+library(gstat)
 
 # Test grids
 # Create grids
@@ -173,6 +174,19 @@ randomrectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
 
 ################################################################################
 # create predictor stack
+# Random noise
+rnoise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
+vals <- rnorm(dimgrid*dimgrid, sd=1)
+rnoise <- setValues(rnoise, vals)
+# Spatially correlated noise
+variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
+gstat_mod <- gstat(formula = z~1, dummy = TRUE, beta = 0, model = variog_mod, nmax = 100) 
+snoise <- predict(gstat_mod, point_grid, nsim = 1)
+snoise <- rasterFromXYZ(cbind(st_coordinates(snoise), 
+                              as.matrix(as.data.frame(snoise)[,1], ncol=1)))
+
+plot(rnoise)
+show_landscape(snoise)
 # Create grids
 dimgrid <- 100
 rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
