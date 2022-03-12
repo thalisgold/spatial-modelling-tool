@@ -239,13 +239,7 @@ rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx
 point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
 # Create sampling areas
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
-# Creating coordinate points to include them in the surface_data
-# coord_points <- point_grid
-# coord_points$x <- st_coordinates(coord_points)[,1]
-# coord_points$y <- st_coordinates(coord_points)[,2]
-# coord_stack <- rasterise_and_stack(coord_points,
-#                                    which(names(coord_points)%in%c("x","y")),
-#                                    c("coord1", "coord2"))
+
 # Define UI --------------------------------------------------------------------
 
 ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("flatly"), 
@@ -355,6 +349,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         ),
         
         uiOutput("gen_prediction"),
+        
+        checkboxInput(inputId = "set_seed", label = "Set seed", value = FALSE),
 
       ),
       
@@ -393,7 +389,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
             column(12, dataTableOutput(outputId = "training_data")),
           )
         ),
-        br()
+        br(),
+        
       )
     )
   ),
@@ -406,6 +403,9 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
 server <- function(input, output, session) {
   predictors <- eventReactive(input$generate_predictors, {
     req(input$nlm)
+    if (input$set_seed){
+      set.seed(100)
+    }
     generate_predictors(input$nlm)
   })
   
@@ -420,15 +420,24 @@ server <- function(input, output, session) {
   simulation <- eventReactive(input$sim_outcome, {
     nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
     simulation <- raster()
+    if (input$set_seed){
+      set.seed(100)
+    }
     expression <- generate_random_function(nlms_for_outcome)
     simulation <- eval(parse(text=expression))
     if (input$r_noise == TRUE){
       r_noise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
+      if (input$set_seed){
+        set.seed(100)
+      }
       vals <- rnorm(dimgrid*dimgrid, sd=1)
       r_noise <- setValues(r_noise, vals)
       simulation <- simulation + r_noise
     }
     if (input$s_noise == TRUE){
+      if (input$set_seed){
+        set.seed(100)
+      }
       variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
       gstat_mod <- gstat(formula = z~1, dummy = TRUE, beta = 0, model = variog_mod, nmax = 100)
       s_noise <- predict(gstat_mod, point_grid, nsim = 1)
@@ -442,6 +451,8 @@ server <- function(input, output, session) {
       )
     })
     simulation <- normalize(simulation)
+    names(simulation) <- "outcome"
+    # print(simulation)
     return(simulation)
   })
   
@@ -469,6 +480,9 @@ server <- function(input, output, session) {
   
   sampling_points <- reactive({
     req(input$n_sampling_points, input$dist_sampling_points)
+    if (input$set_seed){
+      set.seed(100)
+    }
     if (input$dist_sampling_points != "clustered"){
       sampling_points <- generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
     }
