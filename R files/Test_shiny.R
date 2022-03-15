@@ -231,6 +231,7 @@ generate_predictors <- function(nlm){
 }
 
 normalize <- function(x){(x-minValue(x))/(maxValue(x)-minValue(x))}
+normalizeNum <- function(x){(x-min(x))/(max(x)-min(x))}
 
 # Load data --------------------------------------------------------------------
 # Create grids
@@ -355,42 +356,47 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
       ),
       
       mainPanel(
-        h4("Predictors and sampling points"),
-        wellPanel(
-          fluidRow(
-            column(6, plotOutput(outputId = "predictors")),
-            column(6, plotOutput(outputId = "sampling_points"))
+        conditionalPanel(condition = "input.generate_predictors",
+          h4("Predictors and sampling points"),
+          wellPanel(
+            fluidRow(
+              column(6, plotOutput(outputId = "predictors")),
+              column(6, plotOutput(outputId = "sampling_points"))
+            )
           )
         ),
-        h4("Simulated outcome and prediction"),
-        wellPanel(
-          fluidRow(
-            column(6, plotOutput(outputId = "outcome")),
-            column(6, plotOutput(outputId = "prediction"))
+        conditionalPanel(condition = "input.sim_outcome",
+          h4("Simulated outcome and prediction"),
+          wellPanel(
+            fluidRow(
+              column(6, plotOutput(outputId = "outcome")),
+              column(6, plotOutput(outputId = "prediction"))
+            )
           )
         ),
-        h4("Absolute difference and mean absolute error"),
-        wellPanel(
-          fluidRow(
-            column(6, plotOutput(outputId = "difference")),
-            column(6, textOutput(outputId = "mae")),
-          )
-        ),
-        h4("Area of Applicability and dissimilarity index"),
-        wellPanel(
-          fluidRow(
-            column(6, plotOutput(outputId = "aoa")),
-            column(6, plotOutput(outputId = "di")),
-          )
-        ),
-        h4("Training data"),
-        wellPanel(
-          fluidRow(
-            column(12, dataTableOutput(outputId = "training_data")),
-          )
-        ),
-        br(),
-        
+        conditionalPanel(condition = "input.gen_prediction",
+          h4("Absolute difference and mean absolute error"),
+          wellPanel(
+            fluidRow(
+              column(6, plotOutput(outputId = "difference")),
+              column(6, textOutput(outputId = "mae")),
+            )
+          ),
+          h4("Area of Applicability and dissimilarity index"),
+          wellPanel(
+            fluidRow(
+              column(6, plotOutput(outputId = "aoa")),
+              column(6, plotOutput(outputId = "di")),
+            )
+          ),
+          h4("Sample of the training data"),
+          wellPanel(
+            fluidRow(
+              column(12, tableOutput(outputId = "training_data")),
+            )
+          ),
+          br(),
+        )
       )
     )
   ),
@@ -431,6 +437,7 @@ server <- function(input, output, session) {
         set.seed(100)
       }
       vals <- rnorm(dimgrid*dimgrid, sd=1)
+      vals <- vals * 0.2
       r_noise <- setValues(r_noise, vals)
       simulation <- simulation + r_noise
     }
@@ -443,6 +450,7 @@ server <- function(input, output, session) {
       s_noise <- predict(gstat_mod, point_grid, nsim = 1)
       s_noise <- rasterFromXYZ(cbind(st_coordinates(s_noise),
                                     as.matrix(as.data.frame(s_noise)[,1], ncol=1)))
+      s_noise <- s_noise * 0.2
       simulation <- simulation + s_noise
     }
     output$gen_prediction <- renderUI({
@@ -505,7 +513,7 @@ server <- function(input, output, session) {
       all_stack <- stack(simulation(), predictors())
       pred <- names(predictors())
       training_data <- as.data.frame(raster::extract(all_stack, sampling_points()))
-      output$training_data <- renderDataTable(expr = training_data)
+      output$training_data <- renderTable(expr = head(training_data), striped = TRUE)
       # id$areant_grid$area
       # 
       # Create default model

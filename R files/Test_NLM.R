@@ -176,7 +176,12 @@ randomrectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
 # create predictor stack
 # Random noise
 rnoise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
-vals <- rnorm(dimgrid*dimgrid, sd=1)
+plot(rnoise)
+vals <- rnorm(dimgrid*dimgrid, sd=0.5)
+normalizeNum <- function(x){(x-min(x))/(max(x)-min(x))}
+vals <- normalize(vals)
+vals <- vals * 0.2
+head(vals)
 rnoise <- setValues(rnoise, vals)
 # Spatially correlated noise
 variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
