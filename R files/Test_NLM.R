@@ -183,6 +183,8 @@ vals <- normalize(vals)
 vals <- vals * 0.2
 head(vals)
 rnoise <- setValues(rnoise, vals)
+
+
 # Spatially correlated noise
 variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
 gstat_mod <- gstat(formula = z~1, dummy = TRUE, beta = 0, model = variog_mod, nmax = 100) 
@@ -198,6 +200,10 @@ rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx
 point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
 n_train <- 50
 
+# Extract information from stack in a data frame on the sample points
+extr <- as.data.frame(raster::extract(predictors, train_points))
+extr$geom <- train_points$geom
+head(extr)
 # Create study area
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 
@@ -455,12 +461,3 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
   # Return object
   return(checker_folds)
 }
-
-
-s = sort(rexp(100))
-s
-
-normalize <- function(x){(x-minValue(x))/(maxValue(x)-minValue(x))}
-
-normalize(new)
-

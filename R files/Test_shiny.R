@@ -135,11 +135,13 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
     temp <- checkerpolys(coords_checker$xmins[i], 
                          coords_checker$ymins[i], size_block)
     checker_folds <- rbind(checker_folds,temp)
+    # checker_folds$ID <- i
   }
-  
+  # checker_folds$ID <- c(1:25)
+
   # Draw random blocks for sampling
-  sampling_vector <- c(rep("Yes", targetblock), rep("No", blockside^2-targetblock))
-  checker_folds$sample <- sample(sampling_vector, replace=FALSE)
+  # sampling_vector <- c(rep("Yes", targetblock), rep("No", blockside^2-targetblock))
+  # checker_folds$sample <- sample(sampling_vector, replace=FALSE)
   
   # Return object
   return(checker_folds)
@@ -240,6 +242,9 @@ rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx
 point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
 # Create sampling areas
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
+spatial_blocks <- nonuniform_sampling_polys(100)
+plot(spatial_blocks)
+
 
 # Define UI --------------------------------------------------------------------
 
@@ -339,8 +344,11 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         selectInput(
           inputId = "cv_method", label = "Cross-validation method:",
-          choices = c("Random", "Spatial"),
-          selected = "Spatial"
+          choices = c("Random k-fold CV" = "random_k_fold",
+                      "LOO CV" = "loo_cv",
+                      "Spatial block CV" = "sb_cv",
+                      "sbLOO CV" = "sb_loo_cv"),
+          selected = "Random k-fold CV"
         ),
         
         selectInput(
@@ -497,6 +505,7 @@ server <- function(input, output, session) {
     else{
       sampling_points <- clustered_sample(study_area, input$n_parents, input$n_offsprings, input$radius)
     }
+    # print(sampling_points)
   })
   
   output$sampling_points <- renderPlot({
@@ -510,18 +519,26 @@ server <- function(input, output, session) {
     if (input$sim_outcome >=1) {
       # Extracting all necessary information to create the training data
       # print(names(predictors()))
+      sampling_points <- sampling_points()
       all_stack <- stack(simulation(), predictors())
       pred <- names(predictors())
-      training_data <- as.data.frame(raster::extract(all_stack, sampling_points()))
-      output$training_data <- renderTable(expr = head(training_data), striped = TRUE)
+      training_data <- as.data.frame(raster::extract(all_stack, sampling_points))
+      training_data$geom <- sampling_points$geom
+      print(head(training_data))
+      # output$training_data <- renderTable(expr = head(training_data), striped = TRUE)
       # id$areant_grid$area
-      # 
+      
+      #ctrl_default <- trainControl(method="cv", number = 3, savePredictions = TRUE)
+      #indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
+      #ctrl_sp <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
+      
       # Create default model
       model_default <- train(training_data[,pred],
                              training_data$outcome,
                              method = "rf",
                              importance = TRUE,
-                             ntree = 500)
+                             ntree = 500,
+                             trControl=trainControl(method="cv", number=10, savePredictions = TRUE))
       print(varImp(model_default))
       print(model_default)
       # model_default
