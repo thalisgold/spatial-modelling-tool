@@ -13,7 +13,8 @@ library(shinythemes)
 library(gstat)
 
 # Load functions ---------------------------------------------------------------
-#' @author Carles Milà
+
+#' @author Carles Mila
 #' Create stack from point layer
 #' @description 
 #' Function to create a stack of rasters from a sf point object with cell values included 
@@ -50,7 +51,7 @@ rasterise_and_stack <- function(sf_points, cols_indx, layers_names){
   return(res_stack)
 }
 
-#' @author Carles Milà
+#' @author Carles Mila
 #' Sandbox clustered sampling
 #' @description 
 #' Function to generate clustered samples by randomly simulating parent points and subsequently
@@ -86,7 +87,7 @@ clustered_sample <- function(area, n1, n2, radius){
   return(res)
 }
 
-#' @author Carles Milà
+#' @author Carles Mila
 #' Create a square polygon
 #' @param xmin Numeric. Minimum x coordinate for square creation.
 #' @param ymin Numeric. Minimum y coordinate for square creation.
@@ -109,7 +110,7 @@ checkerpolys <- function(xmin, ymin, ch_len){
   return(poly)
 }
 
-#' @author Carles Milà
+#' @author Carles Mila
 #' Non-uniform sampling areas generation
 #' @description 
 #' This functions partitions the study area into many squares, and randomly selects a subset of
@@ -182,63 +183,71 @@ generate_random_function <- function(raster_stack) {
 #' @examples
 #' generate_sampling_points(50, "random")
 generate_sampling_points <- function(n_sampling_points, dist_sampling_points){
-  if(dist_trainingdata %in% c("nonunif")){
+  if(dist_sampling_points %in% c("nonunif")){
     nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
-    sampling_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_trainingdata, type = "random")
+    sampling_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_sampling_points, type = "random")
     sampling_points <- st_sf(geom=sampling_points)
   }else{
-    sampling_points <- st_sample(study_area, n_trainingdata, type = dist_trainingdata)
+    sampling_points <- st_sample(study_area, n_sampling_points, type = dist_sampling_points)
     sampling_points <- st_sf(geom=sampling_points)
   }
   return(sampling_points)
 }
 
-generate_predictors <- function(nlm){
+#' @author Thalis Goldschmidt
+#' Generation of predictors
+#' @description 
+#' This function generates predictors from a list of passed neutral landscape models.
+#' @param nlms List of strings. Contains all the names of the nlms to be generated.
+#' @return A stack of the generated nlms, i. e. of out predictors
+#' @examples
+#' generate_sampling_points(c("distance_gradient", "edge_gradient", "fbm_raster"))
+generate_predictors <- function(nlms){
   predictors <- stack()
-  for (i in 1:length(nlm)) {
-    if (nlm[i] %in% c("distance_gradient")){
+  for (i in 1:length(nlm_list)) {
+    if (nlms[i] %in% c("distance_gradient")){
       distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
                                                 origin = c(80, 10, 40, 5))
       predictors$distance_gradient <- distance_gradient
     }
-    else if(nlm[i] %in% c("edge_gradient")){
+    else if(nlms[i] %in% c("edge_gradient")){
       edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 30)
       predictors$edge_gradient <- edge_gradient
     }
-    else if(nlm[i] %in% c("fbm_raster")){
+    else if(nlms[i] %in% c("fbm_raster")){
       fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
       predictors$fbm_raster <- fbm_raster
     }
-    else if(nlm[i] %in% c("gaussian_field")){
+    else if(nlms[i] %in% c("gaussian_field")){
       gaussian_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
                                           autocorr_range = 100,
                                           mag_var = 8,
                                           nug = 5)
       predictors$gaussian_field <- gaussian_field
     }
-    else if(nlm[i] %in% c("mosaictess")){
+    else if(nlms[i] %in% c("mosaictess")){
       mosaictess <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
       predictors$mosaictess <- mosaictess
     }
-    else if(nlm[i] %in% c("neigh_raster")){
+    else if(nlms[i] %in% c("neigh_raster")){
       neigh_raster <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
                                 p_empty = 0.1, categories = 5, neighbourhood = 8)
       predictors$neigh_raster <- neigh_raster
     }
-    else if(nlm[i] %in% c("planar_gradient")){
+    else if(nlms[i] %in% c("planar_gradient")){
       planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)
       predictors$planar_gradient <- planar_gradient
     }
-    else if(nlm[i] %in% c("random")){
+    else if(nlms[i] %in% c("random")){
       random <- nlm_random(ncol = 100, nrow = 100)
       predictors$random <- random
     }
-    else if(nlm[i] %in% c("random_cluster")){
+    else if(nlms[i] %in% c("random_cluster")){
       random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
                                           p = 0.4, ai = c(0.25, 0.25, 0.5))
       predictors$random_cluster <- random_cluster
     }
-    else if(nlm[i] %in% c("random_rectangular_cluster")){
+    else if(nlms[i] %in% c("random_rectangular_cluster")){
       random_rectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
                                                                 nrow = 100,
                                                                 minl = 5,
@@ -249,18 +258,32 @@ generate_predictors <- function(nlm){
   return(predictors)
 }
 
-normalize <- function(x){(x-minValue(x))/(maxValue(x)-minValue(x))}
-normalizeNum <- function(x){(x-min(x))/(max(x)-min(x))}
+#' @author Thalis Goldschmidt
+#' Function to normalize raster values to values between 0 and 1
+#' @description 
+#' This function normalizes all values of a raster to values between 0 and 1.
+#' @param raster RasterLayer. Layer to be normalized.
+#' @return A normalized raster layer.
+#' @examples
+#' distance_gradient_normalized <- normalized(distance_gradient)
+normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
 # Load data --------------------------------------------------------------------
+
 # Create grids
 dimgrid <- 100
 rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
 point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
+# plot(point_grid)
+
 # Create sampling areas
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
+# plot(study_area)
+
+# Spatial blocks for cross validation
 spatial_blocks <- nonuniform_sampling_polys(100)
-plot(spatial_blocks)
+# spatial_blocks <- spatial_blocks$geom
+# plot(spatial_blocks)
 
 
 # Define UI --------------------------------------------------------------------
@@ -270,6 +293,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
     sidebarLayout(
       sidebarPanel(
         h4("Parameters for predictors"),
+        # Choose multiple NLMs to generate predictors.
         selectInput(
           inputId = "nlm", label = "Choose some NLMs as predictors:",
           choices = c("Distance gradient" = "distance_gradient",
@@ -285,6 +309,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           multiple = TRUE
         ),
         
+        # If more than 2 were chosen, it is possible to generate the predictors.
         conditionalPanel(condition = "input.nlm.length >= 2",
           actionButton(
             inputId = "generate_predictors", label = "Generate selected predictors"
@@ -293,16 +318,19 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         p(),
         
+        # Select from which of the already generated predictors the result should be simulated.
         uiOutput("nlms_for_outcome"),
         checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
         checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
         
+        # If more than 2 were chosen, it is possible to simulate the outcome.
         conditionalPanel(condition = "input.nlms_for_outcome.length >= 2",
           actionButton(
             inputId = "sim_outcome", label = "Simulate outcome"
           )
         ),
         
+        # Select the number and distribution of the sampling points.
         h4("Parameters for training data"),
         selectInput(
           inputId = "dist_sampling_points", label = "Distribution of sampling points:",
@@ -313,6 +341,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           selected = "random"
         ),
         
+        conditionalPanel(condition = "!output.clustered",
+                         numericInput(
+                           inputId = "n_sampling_points",
+                           label = "Number of sampling points:",
+                           value = 50,
+                           min = 50,
+                           max = 250,
+                           step = 50,
+                           width = "60%"
+                         )
+        ),
+        
+        # If "clustered" is selected as the distribution, three sliders open to
+        # determine further parameters.
         conditionalPanel(condition = "output.clustered",
           sliderInput(inputId = "n_parents",
             label = "Number of parents:",
@@ -340,18 +382,6 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           )
         ),
         
-        conditionalPanel(condition = "!output.clustered",
-          numericInput(
-            inputId = "n_sampling_points",
-            label = "Number of sampling points:",
-            value = 50,
-            min = 50,
-            max = 250,
-            step = 50,
-            width = "60%"
-          )
-        ),
-        
         h4("Modelling"),
         radioButtons(
           inputId = "algorithm", label = "Choose algorithm for training:",
@@ -374,8 +404,11 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           selected = "None"
         ),
         
+        # When the result has been calculated, it is possible to make a prediction.
         uiOutput("gen_prediction"),
         
+        # It is possible to plant a seed in order to always achieve the same results
+        # and thus comparability.
         checkboxInput(inputId = "set_seed", label = "Set seed", value = FALSE),
 
       ),
@@ -483,7 +516,7 @@ server <- function(input, output, session) {
         inputId = "gen_prediction", label = "Generate prediction"
       )
     })
-    simulation <- normalize(simulation)
+    simulation <- normalizeRaster(simulation)
     names(simulation) <- "outcome"
     # print(simulation)
     return(simulation)
