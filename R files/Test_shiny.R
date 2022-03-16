@@ -12,8 +12,8 @@ library(sf)
 library(shinythemes)
 library(gstat)
 
-
 # Load functions ---------------------------------------------------------------
+#' @author Carles Milà
 #' Create stack from point layer
 #' @description 
 #' Function to create a stack of rasters from a sf point object with cell values included 
@@ -50,6 +50,7 @@ rasterise_and_stack <- function(sf_points, cols_indx, layers_names){
   return(res_stack)
 }
 
+#' @author Carles Milà
 #' Sandbox clustered sampling
 #' @description 
 #' Function to generate clustered samples by randomly simulating parent points and subsequently
@@ -85,6 +86,7 @@ clustered_sample <- function(area, n1, n2, radius){
   return(res)
 }
 
+#' @author Carles Milà
 #' Create a square polygon
 #' @param xmin Numeric. Minimum x coordinate for square creation.
 #' @param ymin Numeric. Minimum y coordinate for square creation.
@@ -107,6 +109,7 @@ checkerpolys <- function(xmin, ymin, ch_len){
   return(poly)
 }
 
+#' @author Carles Milà
 #' Non-uniform sampling areas generation
 #' @description 
 #' This functions partitions the study area into many squares, and randomly selects a subset of
@@ -135,23 +138,33 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
     temp <- checkerpolys(coords_checker$xmins[i], 
                          coords_checker$ymins[i], size_block)
     checker_folds <- rbind(checker_folds,temp)
-    # checker_folds$ID <- i
   }
+  
+  # Add ID?
   # checker_folds$ID <- c(1:25)
 
   # Draw random blocks for sampling
-  # sampling_vector <- c(rep("Yes", targetblock), rep("No", blockside^2-targetblock))
-  # checker_folds$sample <- sample(sampling_vector, replace=FALSE)
+  sampling_vector <- c(rep("Yes", targetblock), rep("No", blockside^2-targetblock))
+  checker_folds$sample <- sample(sampling_vector, replace=FALSE)
   
   # Return object
   return(checker_folds)
 }
 
-# +, -, *, /, ^2
+#' @author Thalis Goldschmidt
+#' Generation of a random expression
+#' @description 
+#' This function generates a random expression in order to offset the predictors of a given 
+#' stack to simulate an outcome.
+#' @param raster_stack RasterStack. A stack with any number of layers
+#' @return A string containing the expression to be evaluated. 
+#' @examples
+#' print(generate_random_function(predictors))
 generate_random_function <- function(raster_stack) {
+  # All possible operands (easy to extend the list)
   operands = c("+", "-", "*", "^2 +", "^3 -", "^2 *", "^2 -", "^3 +")
   expression = ""
-  for (i in 1:(nlayers(raster_stack)-1)){
+  for (i in 1:(nlayers(raster_stack)-1)){ # (-1 so that the last argument of the stack does not have an operand attached to it)
     expression <- paste(expression, paste(as.character(substitute(raster_stack)), "$", names(raster_stack)[i], sep=""), sep = " ")
     expression <- paste(expression, sample(operands, 1), sep = " ")
   }
@@ -159,12 +172,16 @@ generate_random_function <- function(raster_stack) {
   return(expression)
 }
 
-generate_sampling_points <- function(n_trainingdata, dist_trainingdata){
-  # if(dist_trainingdata %in% c("clust1")){
-  #   sampling_points <- clustered_sample(study_area, n_trainingdata/5, n_trainingdata*4/5, 15)
-  # }else if(dist_trainingdata %in% c("clust2")){
-  #   sampling_points <- clustered_sample(study_area, n_trainingdata/10, n_trainingdata*9/10, dimgrid*0.05)
-  # }
+#' @author Thalis Goldschmidt
+#' Generation of sampling points
+#' @description 
+#' This function generates sampling points depending on the chosen distribution and number. 
+#' @param n_sampling_points Integer. Number of sampling points to be generated.
+#' @param dist_sampling_points String. Name of the selected distribution.
+#' @return A simple feature collection with n features of the type "POINT" and their geometry.
+#' @examples
+#' generate_sampling_points(50, "random")
+generate_sampling_points <- function(n_sampling_points, dist_sampling_points){
   if(dist_trainingdata %in% c("nonunif")){
     nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
     sampling_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_trainingdata, type = "random")
