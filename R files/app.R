@@ -142,7 +142,7 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
   }
   
   # Add ID?
-  # checker_folds$ID <- c(1:25)
+  checker_folds$ID <- c(1:25)
 
   # Draw random blocks for sampling
   sampling_vector <- c(rep("Yes", targetblock), rep("No", blockside^2-targetblock))
@@ -204,7 +204,7 @@ generate_sampling_points <- function(n_sampling_points, dist_sampling_points){
 #' generate_sampling_points(c("distance_gradient", "edge_gradient", "fbm_raster"))
 generate_predictors <- function(nlms){
   predictors <- stack()
-  for (i in 1:length(nlm_list)) {
+  for (i in 1:length(nlms)) {
     if (nlms[i] %in% c("distance_gradient")){
       distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
                                                 origin = c(80, 10, 40, 5))
@@ -268,6 +268,23 @@ generate_predictors <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
+execute_model_training <- function(algorithm, cv_method, training_data, names_predictors) {
+  if (cv_method == "random_k_fold"){
+    ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
+  }
+  else if(cv_method == "sb_cv"){
+    indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
+    ctrl <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
+  }
+  model <- train(training_data[,names_predictors],
+                 training_data$outcome,
+                 method = algorithm,
+                 importance = TRUE,
+                 ntree = 500,
+                 trControl=ctrl)
+  
+}
+
 # Load data --------------------------------------------------------------------
 
 # Create grids
@@ -281,10 +298,9 @@ study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 # plot(study_area)
 
 # Spatial blocks for cross validation
-spatial_blocks <- nonuniform_sampling_polys(100)
-# spatial_blocks <- spatial_blocks$geom
+spatial_blocks <- nonuniform_sampling_polys(100, 5, 5)
+spatial_blocks <- spatial_blocks[1:2]
 # plot(spatial_blocks)
-
 
 # Define UI --------------------------------------------------------------------
 
@@ -385,18 +401,30 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         h4("Modelling"),
         radioButtons(
           inputId = "algorithm", label = "Choose algorithm for training:",
-          choices = c("Random Forest", "Support Vector Machines"),
-          selected = "Random Forest"
+          choices = c("Random Forest" = "rf", 
+                      "Support Vector Machines" = "svmRadial"),
+          selected = "rf"
         ),
         
         selectInput(
           inputId = "cv_method", label = "Cross-validation method:",
           choices = c("Random k-fold CV" = "random_k_fold",
-                      "LOO CV" = "loo_cv",
-                      "Spatial block CV" = "sb_cv",
-                      "sbLOO CV" = "sb_loo_cv"),
-          selected = "Random k-fold CV"
+                      # "LOO CV" = "loo_cv",
+                      "Spatial block CV" = "sb_cv"
+                      # "sbLOO CV" = "sb_loo_cv"
+                      ),
+          multiple = TRUE,
         ),
+        # conditionalPanel(condition = "input.cv_method == random_k_fold",
+        #                  sliderInput(inputId = "k-folds",
+        #                              label = "k-folds:",
+        #                              value = 10,
+        #                              min = 1,
+        #                              max = 20,
+        #                              step = 1,
+        #                              width = "100%"
+        #                  ),
+        # ),
         
         selectInput(
           inputId = "variableSelection", label = "Variable Selection:",
@@ -512,10 +540,13 @@ server <- function(input, output, session) {
       simulation <- simulation + s_noise
     }
     output$gen_prediction <- renderUI({
-      actionButton(
-        inputId = "gen_prediction", label = "Generate prediction"
+      conditionalPanel(condition = "input.cv_method.length > 0",
+        actionButton(
+          inputId = "gen_prediction", label = "Generate prediction"
+        )
       )
     })
+      
     simulation <- normalizeRaster(simulation)
     names(simulation) <- "outcome"
     # print(simulation)
@@ -572,53 +603,73 @@ server <- function(input, output, session) {
       sampling_points <- sampling_points()
       all_stack <- stack(simulation(), predictors())
       pred <- names(predictors())
-      training_data <- as.data.frame(raster::extract(all_stack, sampling_points))
-      training_data$geom <- sampling_points$geom
-      print(head(training_data))
+      # Assign a spatial block to each point
+      sampling_points <- st_join(sampling_points, spatial_blocks)
+      # print(head(sampling_points))
+      training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE))
+      # training_data$ID <- sampling_points$ID
+      # print(head(training_data[,pred]))
       # output$training_data <- renderTable(expr = head(training_data), striped = TRUE)
       # id$areant_grid$area
       
-      #ctrl_default <- trainControl(method="cv", number = 3, savePredictions = TRUE)
-      #indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
-      #ctrl_sp <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
+      print(length(unique(training_data$ID)))
+      
+      # ctrl_default <- trainControl(method="cv", number = 10, savePredictions = TRUE)
+      # indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
+      # print(indices)
+      # ctrl_scv <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
       
       # Create default model
-      model_default <- train(training_data[,pred],
-                             training_data$outcome,
-                             method = "rf",
-                             importance = TRUE,
-                             ntree = 500,
-                             trControl=trainControl(method="cv", number=10, savePredictions = TRUE))
-      print(varImp(model_default))
-      print(model_default)
-      # model_default
-      prediction_default <- predict(all_stack, model_default)
-    
-      dif_default <- simulation() - prediction_default
+      for (i in 1:length(input$cv_method)) {
+        model <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
+        # print(varImp(model_default))
+        print(model)
+        # print(model$resample)
+      }
+      # model <- execute_model_training(input$algorithm, input$cv_method, training_data, pred)
+      # print(varImp(model_default))
+      # print(model$resample)
+      # # model_default
+      # prediction_default <- predict(all_stack, model_default)
+
+      # dif_default <- simulation() - prediction_default
       # result <- stack(prediction_default, dif_default)
       # print(names(result))
       # names(result) <- c("Prediction", "Difference")
-      output$prediction <- renderPlot({
-        show_landscape(prediction_default)
-      })
-      output$difference <- renderPlot({
-        show_landscape(dif_default)
-      })
+      # output$prediction <- renderPlot({
+      #   show_landscape(prediction_default)
+      # })
+      # output$difference <- renderPlot({
+      #   show_landscape(dif_default)
+      # })
       
-      prediction_default_abs <- abs(prediction_default)
-      MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
-      print(MAE_default)
-      output$mae <- renderText({
-        paste("MAE =", MAE_default, sep = " ")
-      })
-      aoa <- aoa(all_stack, model_default)
-      # print(names(aoa))
-      output$aoa <- renderPlot({
-        show_landscape(aoa$AOA)
-      })
-      output$di <- renderPlot({
-        show_landscape(aoa$DI)
-      })
+      # Create default model
+      # model_scv <- train(training_data[,pred],
+      #                        training_data$outcome,
+      #                        method = "rf",
+      #                        importance = TRUE,
+      #                        ntree = 500,
+      #                        trControl=ctrl_scv)
+      # print(varImp(model_default))
+      # print(model_scv)
+      # # model_default
+      # prediction_default <- predict(all_stack, model_default)
+      
+
+      # prediction_default_abs <- abs(prediction_default)
+      # MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
+      # print(MAE_default)
+      # output$mae <- renderText({
+      #   paste("MAE =", MAE_default, sep = " ")
+      # })
+      # aoa <- aoa(all_stack, model_default)
+      # # print(names(aoa))
+      # output$aoa <- renderPlot({
+      #   show_landscape(aoa$AOA)
+      # })
+      # output$di <- renderPlot({
+      #   show_landscape(aoa$DI)
+      # })
     }
   })
 }
