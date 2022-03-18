@@ -311,6 +311,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
   tabPanel("App",
     sidebarLayout(
       sidebarPanel(
+        h4("If desired, set any seed to make your results reproducible:"),
+        # It is possible to plant a seed in order to always achieve the same results
+        # and thus comparability.
+        fluidRow(
+          column(3, checkboxInput(inputId = "set_seed", label = "\n Set following seed:", value = FALSE)),
+          column(9, numericInput(inputId = "seed", label = "", value = 1, min = 1, max = 10000, step = 1, width = "33.3%"))
+        ),
+        
         h4("Parameters for predictors"),
         # Choose multiple NLMs to generate predictors.
         selectInput(
@@ -438,11 +446,6 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         # When the result has been calculated, it is possible to make a prediction.
         uiOutput("gen_prediction"),
-        
-        # It is possible to plant a seed in order to always achieve the same results
-        # and thus comparability.
-        checkboxInput(inputId = "set_seed", label = "Set seed", value = FALSE),
-
       ),
       
       mainPanel(
@@ -500,7 +503,7 @@ server <- function(input, output, session) {
   predictors <- eventReactive(input$generate_predictors, {
     req(input$nlm)
     if (input$set_seed){
-      set.seed(100)
+      set.seed(input$seed)
     }
     generate_predictors(input$nlm)
   })
@@ -517,14 +520,14 @@ server <- function(input, output, session) {
     nlms_for_outcome <- subset(predictors(), input$nlms_for_outcome)
     simulation <- raster()
     if (input$set_seed){
-      set.seed(100)
+      set.seed(input$seed)
     }
     expression <- generate_random_function(nlms_for_outcome)
     simulation <- eval(parse(text=expression))
     if (input$r_noise == TRUE){
       r_noise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
       if (input$set_seed){
-        set.seed(100)
+        set.seed(input$seed)
       }
       vals <- rnorm(dimgrid*dimgrid, sd=1)
       vals <- vals * 0.1
@@ -533,7 +536,7 @@ server <- function(input, output, session) {
     }
     if (input$s_noise == TRUE){
       if (input$set_seed){
-        set.seed(100)
+        set.seed(input$seed)
       }
       variog_mod <- vgm(model = "Sph", psill = 1, range = 40, nugget = 0)
       gstat_mod <- gstat(formula = z~1, dummy = TRUE, beta = 0, model = variog_mod, nmax = 100)
@@ -582,7 +585,7 @@ server <- function(input, output, session) {
   sampling_points <- reactive({
     req(input$n_sampling_points, input$dist_sampling_points)
     if (input$set_seed){
-      set.seed(100)
+      set.seed(input$seed)
     }
     if (input$dist_sampling_points != "clustered"){
       sampling_points <- generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
@@ -610,6 +613,9 @@ server <- function(input, output, session) {
     models <- list()
     # Create model and use two different cv_methods during training.
     # For the first passed cv-method create a prediction and aoa
+    if (input$set_seed){
+      set.seed(input$seed)
+    }
     for (i in 1:length(input$cv_method)) {
       models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
       # print(varImp(model_default))
