@@ -269,7 +269,7 @@ generate_predictors <- function(nlms){
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
 execute_model_training <- function(algorithm, cv_method, training_data, names_of_predictors) {
-  if (cv_method == "random_10_fold"){
+  if (cv_method == "random_10_fold_cv"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
   }
   else if(cv_method == "loo_cv"){
@@ -425,7 +425,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         selectInput(
           inputId = "cv_method", label = "Cross-validation method:",
-          choices = c("Random 10-fold CV" = "random_10_fold",
+          choices = c("Random 10-fold CV" = "random_10_fold_cv",
                       "LOO CV" = "loo_cv",
                       "Spatial block CV" = "sb_cv"
                       # "sbLOO CV" = "sb_loo_cv"
@@ -454,50 +454,105 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
       ),
       
       mainPanel(
-        conditionalPanel(condition = "input.generate_predictors",
-          h4("Predictors and sampling points"),
-          wellPanel(
-            fluidRow(
-              column(6, plotOutput(outputId = "predictors")),
-              column(6, plotOutput(outputId = "sampling_points"))
-            )
-          )
+        # conditionalPanel(condition = "input.generate_predictors",
+        #   h4("Predictors and sampling points"),
+        fluidRow(
+          column(6, conditionalPanel(condition = "input.generate_predictors",
+                                     wellPanel(
+                                       h4("Predictors"),
+                                       plotOutput(outputId = "predictors")
+                                     ),
+                                    ),
+
+          ),
+          column(6, conditionalPanel(condition = "input.sim_outcome",
+                                     wellPanel(
+                                       h4("Sampling points"),
+                                       plotOutput(outputId = "sampling_points"),
+                                       )
+                                     ),
+          ),
         ),
-        conditionalPanel(condition = "input.sim_outcome",
-          h4("Simulated outcome and prediction"),
-          wellPanel(
-            fluidRow(
-              column(6, plotOutput(outputId = "outcome")),
-              column(6, plotOutput(outputId = "prediction"))
-            )
-          )
+        fluidRow(
+          column(4, conditionalPanel(condition = "input.sim_outcome",
+                                     wellPanel(
+                                       h4("Simulated outcome"),
+                                       plotOutput(outputId = "outcome")
+                                     ),
+                                    ),
+          
+          ),
+          column(4, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Prediction"),
+                                       plotOutput(outputId = "prediction"),
+                                     ),
+                                    ),
+          ),
+          column(4, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Difference"),
+                                       plotOutput(outputId = "difference"),
+                                     ),
+                                    ),
+          ),
         ),
         conditionalPanel(condition = "input.gen_prediction",
-          h4("Absolute difference and mean absolute error"),
-          wellPanel(
-            fluidRow(
-              column(6, plotOutput(outputId = "difference")),
-              column(6, textOutput(outputId = "mae")),
-            )
+                         wellPanel(
+                           textOutput(outputId = "true_mae")
+                         )
+        ),
+        fluidRow(
+          column(3, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Random 10-fold CV"),
+                                       tableOutput(outputId = "random_10_fold_cv")
+                                     ),
           ),
-          h4("Area of Applicability and dissimilarity index"),
-          wellPanel(
-            fluidRow(
-              column(6, plotOutput(outputId = "aoa")),
-              column(6, plotOutput(outputId = "di")),
-            )
           ),
-          h4("Sample of the training data"),
-          wellPanel(
-            fluidRow(
-              column(12, tableOutput(outputId = "training_data")),
-            )
+          column(3, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("LOO CV"),
+                                       tableOutput(outputId = "loo_cv"),
+                                     ),
           ),
-          br(),
+          ),
+          column(3, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Spatial block CV"),
+                                       tableOutput(outputId = "sb_cv"),
+                                     ),
+          ),
+          ),
+          column(3, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Difference"),
+                                       tableOutput(outputId = "sb_loo_ndm_cv"),
+                                     ),
+          ),
+          ),
+        ),
+        fluidRow(
+          column(6, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Area of applicabilty"),
+                                       plotOutput(outputId = "aoa")
+                                     ),
+          ),
+          
+          ),
+          column(6, conditionalPanel(condition = "input.gen_prediction",
+                                     wellPanel(
+                                       h4("Dissimilarity index"),
+                                       plotOutput(outputId = "di"),
+                                     )
+          ),
+          ),
+        ),
+        br(),
         )
       )
-    )
-  ),
+    ),
   tabPanel("Documentation"),
   tabPanel("Demo"),
 )
@@ -616,6 +671,7 @@ server <- function(input, output, session) {
     training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
     # print(head(training_data))
     models <- list()
+    model_results <- list()
     # Create model and use two different cv_methods during training.
     # For the first passed cv-method create a prediction and aoa
     if (input$set_seed){
@@ -623,11 +679,35 @@ server <- function(input, output, session) {
     }
     for (i in 1:length(input$cv_method)) {
       models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
+      model_results[[i]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
+      # print(model_results[[i]])
+      # dummy <- noquote(input$cv_method[i])
+      # print(dummy)
+      # output$eval(input$cv_method[i]) <- renderTable(model_results[[i]])
       # print(varImp(model_default))
     }
-    # print(input$cv_method)
     names(models) <- input$cv_method
-    print(models[[1]]$MAE)
+    print(names(models))
+    # for (i in 1:length(input$cv_method)) {
+    #   if (names(models[[i]]) == "random_10_fold_cv"){
+    #     output$random_10_fold_cv <- renderTable(model_results[[i]])
+    #   }
+    #   else if (names(models[[i]]) == "loo_cv"){
+    #     output$loo_cv <- renderTable(model_results[[i]])
+    #   }
+    #   else if (names(models[[i]]) == "sb_cv"){
+    #     output$sb_cv <- renderTable(model_results[[i]])
+    #   }
+    # }
+    
+    # models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
+    # model_results <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
+    # output$as.character(substitute(input$cv_method[i])) <- renderTable(model_results)
+    
+    # print(input$cv_method)
+    
+    # model_results[[input$cv_method[i]]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
+    # output$model_result <- renderTable(model_results[["random_10_fold"]])
     
     prediction <- predict(predictors(), models[[1]])
     dif <- simulation() - prediction
@@ -637,7 +717,7 @@ server <- function(input, output, session) {
     output$difference <- renderPlot({
       show_landscape(dif)
     })
-    MAE <- sum(raster::extract(abs(dif), point_grid))/10000
+    MAE <- round((sum(raster::extract(abs(dif), point_grid))/10000), digits = 4)
     output$true_mae <- renderText({
       paste("True MAE =", MAE,  sep = " ")
     })
