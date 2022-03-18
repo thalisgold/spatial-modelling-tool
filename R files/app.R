@@ -268,15 +268,18 @@ generate_predictors <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
-execute_model_training <- function(algorithm, cv_method, training_data, names_predictors) {
-  if (cv_method == "random_k_fold"){
+execute_model_training <- function(algorithm, cv_method, training_data, names_of_predictors) {
+  if (cv_method == "random_10_fold"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
+  }
+  else if(cv_method == "loo_cv"){
+    ctrl <- trainControl(method="cv", number = length(training_data[[1]]), savePredictions = TRUE)
   }
   else if(cv_method == "sb_cv"){
     indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
     ctrl <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
   }
-  model <- train(training_data[,names_predictors],
+  model <- train(training_data[,names_of_predictors],
                  training_data$outcome,
                  method = algorithm,
                  importance = TRUE,
@@ -322,7 +325,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                       "Random cluster" = "random_cluster",
                       "Random neighbourhood" = "neigh_raster",
                       "Random rectangular cluster" = "random_rectangular_cluster"),
-          multiple = TRUE
+          multiple = TRUE,
+          selected = c("distance_gradient", "edge_gradient", "fbm_raster")
         ),
         
         # If more than 2 were chosen, it is possible to generate the predictors.
@@ -408,8 +412,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         selectInput(
           inputId = "cv_method", label = "Cross-validation method:",
-          choices = c("Random k-fold CV" = "random_k_fold",
-                      # "LOO CV" = "loo_cv",
+          choices = c("Random 10-fold CV" = "random_10_fold",
+                      "LOO CV" = "loo_cv",
                       "Spatial block CV" = "sb_cv"
                       # "sbLOO CV" = "sb_loo_cv"
                       ),
@@ -506,7 +510,7 @@ server <- function(input, output, session) {
   })
   
   output$nlms_for_outcome <- renderUI({
-    selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE)
+    selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE, selected = c("distance_gradient", "edge_gradient"))
   })
   
   simulation <- eventReactive(input$sim_outcome, {
@@ -523,7 +527,7 @@ server <- function(input, output, session) {
         set.seed(100)
       }
       vals <- rnorm(dimgrid*dimgrid, sd=1)
-      vals <- vals * 0.2
+      vals <- vals * 0.1
       r_noise <- setValues(r_noise, vals)
       simulation <- simulation + r_noise
     }
@@ -536,7 +540,7 @@ server <- function(input, output, session) {
       s_noise <- predict(gstat_mod, point_grid, nsim = 1)
       s_noise <- rasterFromXYZ(cbind(st_coordinates(s_noise),
                                     as.matrix(as.data.frame(s_noise)[,1], ncol=1)))
-      s_noise <- s_noise * 0.2
+      s_noise <- s_noise * 0.1
       simulation <- simulation + s_noise
     }
     output$gen_prediction <- renderUI({
@@ -559,7 +563,7 @@ server <- function(input, output, session) {
     })
   })
   
-  datasetInput <- reactive({
+  distInput <- reactive({
     switch(input$dist_sampling_points,
            "random",
            "regular",
@@ -597,80 +601,43 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gen_prediction, {
-    if (input$sim_outcome >=1) {
-      # Extracting all necessary information to create the training data
-      # print(names(predictors()))
-      sampling_points <- sampling_points()
-      all_stack <- stack(simulation(), predictors())
-      pred <- names(predictors())
-      # Assign a spatial block to each point
-      sampling_points <- st_join(sampling_points, spatial_blocks)
-      # print(head(sampling_points))
-      training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE))
-      # training_data$ID <- sampling_points$ID
-      # print(head(training_data[,pred]))
-      # output$training_data <- renderTable(expr = head(training_data), striped = TRUE)
-      # id$areant_grid$area
-      
-      print(length(unique(training_data$ID)))
-      
-      # ctrl_default <- trainControl(method="cv", number = 10, savePredictions = TRUE)
-      # indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
-      # print(indices)
-      # ctrl_scv <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
-      
-      # Create default model
-      for (i in 1:length(input$cv_method)) {
-        model <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
-        # print(varImp(model_default))
-        print(model)
-        # print(model$resample)
-      }
-      # model <- execute_model_training(input$algorithm, input$cv_method, training_data, pred)
+    sampling_points <- sampling_points() # Generate sampling points
+    all_stack <- stack(simulation(), predictors()) # Create a stack of the outcome and all predictors
+    pred <- names(predictors()) # Save all the names of the predictors so that the function knows which columns to use in the training
+    sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
+    training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
+    # print(head(training_data))
+    models <- list()
+    # Create model and use two different cv_methods during training.
+    # For the first passed cv-method create a prediction and aoa
+    for (i in 1:length(input$cv_method)) {
+      models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
       # print(varImp(model_default))
-      # print(model$resample)
-      # # model_default
-      # prediction_default <- predict(all_stack, model_default)
-
-      # dif_default <- simulation() - prediction_default
-      # result <- stack(prediction_default, dif_default)
-      # print(names(result))
-      # names(result) <- c("Prediction", "Difference")
-      # output$prediction <- renderPlot({
-      #   show_landscape(prediction_default)
-      # })
-      # output$difference <- renderPlot({
-      #   show_landscape(dif_default)
-      # })
-      
-      # Create default model
-      # model_scv <- train(training_data[,pred],
-      #                        training_data$outcome,
-      #                        method = "rf",
-      #                        importance = TRUE,
-      #                        ntree = 500,
-      #                        trControl=ctrl_scv)
-      # print(varImp(model_default))
-      # print(model_scv)
-      # # model_default
-      # prediction_default <- predict(all_stack, model_default)
-      
-
-      # prediction_default_abs <- abs(prediction_default)
-      # MAE_default <- sum(raster::extract(prediction_default_abs, point_grid))/10000
-      # print(MAE_default)
-      # output$mae <- renderText({
-      #   paste("MAE =", MAE_default, sep = " ")
-      # })
-      # aoa <- aoa(all_stack, model_default)
-      # # print(names(aoa))
-      # output$aoa <- renderPlot({
-      #   show_landscape(aoa$AOA)
-      # })
-      # output$di <- renderPlot({
-      #   show_landscape(aoa$DI)
-      # })
     }
+    # print(input$cv_method)
+    names(models) <- input$cv_method
+    print(models)
+    
+    prediction <- predict(all_stack, models[[1]])
+    dif <- simulation() - prediction
+    output$prediction <- renderPlot({
+      show_landscape(prediction)
+    })
+    output$difference <- renderPlot({
+      show_landscape(dif)
+    })
+    MAE <- sum(raster::extract(abs(dif), point_grid))/10000
+    output$mae <- renderText({
+      paste("MAE =", MAE,  sep = " ")
+    })
+    aoa <- aoa(all_stack, models[[1]])
+    # print(names(aoa))
+    output$aoa <- renderPlot({
+      show_landscape(aoa$AOA)
+    })
+    output$di <- renderPlot({
+      show_landscape(aoa$DI)
+    })
   })
 }
 # Create the Shiny app object --------------------------------------------------
