@@ -624,7 +624,7 @@ server <- function(input, output, session) {
     names(models) <- input$cv_method
     print(models)
     
-    prediction <- predict(all_stack, models[[1]])
+    prediction <- predict(predictors(), models[[1]])
     dif <- simulation() - prediction
     output$prediction <- renderPlot({
       show_landscape(prediction)
