@@ -311,14 +311,19 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
   tabPanel("App",
     sidebarLayout(
       sidebarPanel(
-        h4("If desired, set any seed to make your results reproducible:"),
         # It is possible to plant a seed in order to always achieve the same results
         # and thus comparability.
-        fluidRow(
-          column(3, checkboxInput(inputId = "set_seed", label = "\n Set following seed:", value = FALSE)),
-          column(9, numericInput(inputId = "seed", label = "", value = 1, min = 1, max = 10000, step = 1, width = "33.3%"))
+        checkboxInput(inputId = "set_seed", label = "Set following seed to make your results reproducible:", value = FALSE),
+        conditionalPanel(condition = "input.set_seed",
+                         numericInput(inputId = "seed",
+                                      label = "",
+                                      value = 1,
+                                      min = 1,
+                                      max = 10000,
+                                      step = 1,
+                                      width = "30%")
         ),
-        
+      
         h4("Parameters for predictors"),
         # Choose multiple NLMs to generate predictors.
         selectInput(
@@ -622,7 +627,7 @@ server <- function(input, output, session) {
     }
     # print(input$cv_method)
     names(models) <- input$cv_method
-    print(models)
+    print(models[[1]]$MAE)
     
     prediction <- predict(predictors(), models[[1]])
     dif <- simulation() - prediction
@@ -633,8 +638,8 @@ server <- function(input, output, session) {
       show_landscape(dif)
     })
     MAE <- sum(raster::extract(abs(dif), point_grid))/10000
-    output$mae <- renderText({
-      paste("MAE =", MAE,  sep = " ")
+    output$true_mae <- renderText({
+      paste("True MAE =", MAE,  sep = " ")
     })
     aoa <- aoa(all_stack, models[[1]])
     # print(names(aoa))
