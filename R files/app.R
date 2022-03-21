@@ -391,7 +391,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         conditionalPanel(condition = "output.clustered",
           sliderInput(inputId = "n_parents",
             label = "Number of parents:",
-            value = 10,
+            value = 5,
             min = 1,
             max = 20,
             step = 1,
@@ -399,7 +399,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           ),
           sliderInput(inputId = "n_offsprings",
             label = "Number of offsprings:",
-            value = 40,
+            value = 45,
             min = 10,
             max = 250,
             step = 1,
@@ -526,7 +526,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           ),
           column(3, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
-                                       h4("Difference"),
+                                       h4("NNDM LOO CV"),
                                        tableOutput(outputId = "sb_loo_ndm_cv"),
                                      ),
           ),
@@ -679,36 +679,50 @@ server <- function(input, output, session) {
     }
     for (i in 1:length(input$cv_method)) {
       models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
-      model_results[[i]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
+      if (input$algorithm == "rf") {
+        model_results[[i]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
       # print(model_results[[i]])
       # dummy <- noquote(input$cv_method[i])
       # print(dummy)
+      # print(output)
       # output$eval(input$cv_method[i]) <- renderTable(model_results[[i]])
-      # print(varImp(model_default))
+      # print(varImp(models[[i]]))
+      }
+      else {
+        model_results[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
+      }
     }
     names(models) <- input$cv_method
-    print(names(models))
-    # for (i in 1:length(input$cv_method)) {
-    #   if (names(models[[i]]) == "random_10_fold_cv"){
-    #     output$random_10_fold_cv <- renderTable(model_results[[i]])
-    #   }
-    #   else if (names(models[[i]]) == "loo_cv"){
-    #     output$loo_cv <- renderTable(model_results[[i]])
-    #   }
-    #   else if (names(models[[i]]) == "sb_cv"){
-    #     output$sb_cv <- renderTable(model_results[[i]])
-    #   }
-    # }
-    
-    # models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
-    # model_results <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
-    # output$as.character(substitute(input$cv_method[i])) <- renderTable(model_results)
-    
-    # print(input$cv_method)
-    
-    # model_results[[input$cv_method[i]]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
-    # output$model_result <- renderTable(model_results[["random_10_fold"]])
-    
+    print(models)
+    # print(models)
+    # print(names(models))
+    # print(length(input$cv_method))
+    # print(model_results[[1]])
+    # print(model_results[[2]])
+    # print(model_results[[3]])
+    # output$random_10_fold_cv <- NULL
+    # output$loo_cv <- NULL
+    # output$sb_cv <- NULL
+    for (i in 1:length(input$cv_method)) {
+      if (names(models[i]) == "random_10_fold_cv"){
+        # print(i)
+        j <- i
+        # print(names(models[i]))
+        output$random_10_fold_cv <- renderTable(expr = model_results[[j]], striped = TRUE, digits = 4)
+      }
+      if (names(models[i]) == "loo_cv"){
+        # print(i)
+        k <- i
+        # print(names(models[i]))
+        output$loo_cv <- renderTable(expr = model_results[[k]], striped = TRUE, digits = 4)
+      }
+      if (names(models[i]) == "sb_cv"){
+        # print(i)
+        l <- i
+        # print(names(models[i]))
+        output$sb_cv <- renderTable(expr = model_results[[l]], striped = TRUE, digits = 4)
+      }
+    }
     prediction <- predict(predictors(), models[[1]])
     dif <- simulation() - prediction
     output$prediction <- renderPlot({
