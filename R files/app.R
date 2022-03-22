@@ -268,7 +268,7 @@ generate_predictors <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
-execute_model_training <- function(algorithm, cv_method, training_data, names_of_predictors) {
+execute_model_training <- function(algorithm, cv_method, training_data, names_of_predictors, variable_selection) {
   if (cv_method == "random_10_fold_cv"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
   }
@@ -279,12 +279,20 @@ execute_model_training <- function(algorithm, cv_method, training_data, names_of
     indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
     ctrl <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
   }
-  model <- train(training_data[,names_of_predictors],
-                 training_data$outcome,
-                 method = algorithm,
-                 importance = TRUE,
-                 ntree = 500,
-                 trControl=ctrl)
+  if (variable_selection == "None"){
+    model <- train(training_data[,names_of_predictors],
+                   training_data$outcome,
+                   method = algorithm,
+                   importance = TRUE,
+                   trControl=ctrl)
+  }
+  else if (variable_selection == "FFS" & algorithm == "rf"){
+    model <- CAST::ffs(train(training_data[,names_of_predictors],
+                            training_data$outcome,
+                            method = algorithm,
+                            ntree = 500,
+                            trControl=ctrl))
+  }
   
 }
 
@@ -311,23 +319,33 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
   tabPanel("App",
     sidebarLayout(
       sidebarPanel(
+        
         # It is possible to plant a seed in order to always achieve the same results
         # and thus comparability.
-        checkboxInput(inputId = "set_seed", label = "Set following seed to make your results reproducible:", value = FALSE),
+        checkboxInput(
+          inputId = "set_seed",
+          label = "Set following seed to make your results reproducible:",
+          value = FALSE
+          ),
+        
         conditionalPanel(condition = "input.set_seed",
-                         numericInput(inputId = "seed",
-                                      label = "",
-                                      value = 1,
-                                      min = 1,
-                                      max = 10000,
-                                      step = 1,
-                                      width = "30%")
-        ),
+                         numericInput(
+                           inputId = "seed",
+                           label = "",
+                           value = 1,
+                           min = 1,
+                           max = 10000,
+                           step = 1,
+                           width = "30%"
+                           )
+                         ),
       
         h4("Parameters for predictors"),
+        
         # Choose multiple NLMs to generate predictors.
         selectInput(
-          inputId = "nlm", label = "Choose some NLMs as predictors:",
+          inputId = "nlm",
+          label = "Choose some NLMs as predictors:",
           choices = c("Distance gradient" = "distance_gradient",
                       "Edge gradient" = "edge_gradient",
                       "Fractional brownian motion" = "fbm_raster",
@@ -344,11 +362,12 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         # If more than 2 were chosen, it is possible to generate the predictors.
         conditionalPanel(condition = "input.nlm.length >= 2",
-          actionButton(
-            inputId = "generate_predictors", label = "Generate selected predictors"
-          )
-        ),
-        
+                         actionButton(
+                           inputId = "generate_predictors",
+                           label = "Generate selected predictors"
+                           )
+                         ),
+
         p(),
         
         # Select from which of the already generated predictors the result should be simulated.
@@ -358,15 +377,17 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         # If more than 2 were chosen, it is possible to simulate the outcome.
         conditionalPanel(condition = "input.nlms_for_outcome.length >= 2",
-          actionButton(
-            inputId = "sim_outcome", label = "Simulate outcome"
-          )
-        ),
+                         actionButton(
+                           inputId = "sim_outcome",
+                           label = "Simulate outcome"
+                           )
+                         ),
         
         # Select the number and distribution of the sampling points.
         h4("Parameters for training data"),
         selectInput(
-          inputId = "dist_sampling_points", label = "Distribution of sampling points:",
+          inputId = "dist_sampling_points",
+          label = "Distribution of sampling points:",
           choices = c("Clustered" = "clustered",
                       "Non-uniform" = "nonunif",
                       "Random" = "random",
@@ -383,48 +404,52 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                            max = 250,
                            step = 50,
                            width = "60%"
-                         )
-        ),
+                           )
+                         ),
         
         # If "clustered" is selected as the distribution, three sliders open to
         # determine further parameters.
         conditionalPanel(condition = "output.clustered",
-          sliderInput(inputId = "n_parents",
-            label = "Number of parents:",
-            value = 5,
-            min = 1,
-            max = 20,
-            step = 1,
-            width = "100%"
-          ),
-          sliderInput(inputId = "n_offsprings",
-            label = "Number of offsprings:",
-            value = 45,
-            min = 10,
-            max = 250,
-            step = 1,
-            width = "100%"
-          ),
-          sliderInput(inputId = "radius",
-                      label = "Radius:",
-                      value = 5,
-                      min = 1,
-                      max = 8,
-                      step = 1,
-                      width = "100%"
-          )
-        ),
+                         sliderInput(
+                           inputId = "n_parents",
+                           label = "Number of parents:",
+                           value = 5,
+                           min = 1,
+                           max = 20,
+                           step = 1,
+                           width = "100%"
+                           ),
+                         sliderInput(
+                           inputId = "n_offsprings",
+                           label = "Number of offsprings:",
+                           value = 45,
+                           min = 10,
+                           max = 250,
+                           step = 1,
+                           width = "100%"
+                           ),
+                         sliderInput(inputId = "radius",
+                           label = "Radius:",
+                           value = 5,
+                           min = 1,
+                           max = 8,
+                           step = 1,
+                           width = "100%"
+                           )
+                         ),
         
         h4("Modelling"),
         radioButtons(
-          inputId = "algorithm", label = "Choose algorithm for training:",
+          inputId = "algorithm", 
+          label = "Choose algorithm for training:",
           choices = c("Random Forest" = "rf", 
                       "Support Vector Machines" = "svmRadial"),
           selected = "rf"
         ),
         
         selectInput(
-          inputId = "cv_method", label = "Cross-validation method:",
+          inputId = "cv_method",
+          label = "Cross-validation method:",
           choices = c("Random 10-fold CV" = "random_10_fold_cv",
                       "LOO CV" = "loo_cv",
                       "Spatial block CV" = "sb_cv"
@@ -432,22 +457,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                       ),
           multiple = TRUE,
         ),
-        # conditionalPanel(condition = "input.cv_method == random_k_fold",
-        #                  sliderInput(inputId = "k-folds",
-        #                              label = "k-folds:",
-        #                              value = 10,
-        #                              min = 1,
-        #                              max = 20,
-        #                              step = 1,
-        #                              width = "100%"
-        #                  ),
-        # ),
         
-        selectInput(
-          inputId = "variableSelection", label = "Variable Selection:",
-          choices = c("None", "FFS", "RFE"),
-          selected = "None"
-        ),
+        conditionalPanel(condition = "input.algorithm == 'rf'",
+                         selectInput(
+                           inputId = "variable_selection", label = "Variable selection:",
+                           choices = c("None", "FFS", "RFE"),
+                           selected = "None"
+                           )
+                         ),
         
         # When the result has been calculated, it is possible to make a prediction.
         uiOutput("gen_prediction"),
@@ -461,94 +478,91 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                      wellPanel(
                                        h4("Predictors"),
                                        plotOutput(outputId = "predictors")
-                                     ),
-                                    ),
-
-          ),
+                                       )
+                                     )
+                 ),
           column(6, conditionalPanel(condition = "input.sim_outcome",
                                      wellPanel(
                                        h4("Sampling points"),
-                                       plotOutput(outputId = "sampling_points"),
+                                       plotOutput(outputId = "sampling_points")
                                        )
-                                     ),
+                                     )
+                 ),
           ),
-        ),
         fluidRow(
           column(4, conditionalPanel(condition = "input.sim_outcome",
                                      wellPanel(
                                        h4("Simulated outcome"),
                                        plotOutput(outputId = "outcome")
-                                     ),
-                                    ),
-          
-          ),
+                                       )
+                                     )
+                 ),
           column(4, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("Prediction"),
-                                       plotOutput(outputId = "prediction"),
-                                     ),
-                                    ),
-          ),
+                                       plotOutput(outputId = "prediction")
+                                       )
+                                     )
+                 ),
           column(4, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("Difference"),
-                                       plotOutput(outputId = "difference"),
-                                     ),
-                                    ),
+                                       plotOutput(outputId = "difference")
+                                       )
+                                     )
+                 ),
           ),
-        ),
         conditionalPanel(condition = "input.gen_prediction",
                          wellPanel(
                            textOutput(outputId = "true_mae")
-                         )
-        ),
+                           )
+                         ),
         fluidRow(
           column(3, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("Random 10-fold CV"),
                                        tableOutput(outputId = "random_10_fold_cv")
-                                     ),
-          ),
-          ),
+                                       )
+                                     )
+                 ),
           column(3, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("LOO CV"),
-                                       tableOutput(outputId = "loo_cv"),
-                                     ),
-          ),
-          ),
+                                       tableOutput(outputId = "loo_cv")
+                                       )
+                                     )
+                 ),
           column(3, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("Spatial block CV"),
-                                       tableOutput(outputId = "sb_cv"),
-                                     ),
-          ),
+                                       tableOutput(outputId = "sb_cv")
+                                       )
+                                     )
           ),
           column(3, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("NNDM LOO CV"),
-                                       tableOutput(outputId = "sb_loo_ndm_cv"),
-                                     ),
+                                       tableOutput(outputId = "sb_loo_ndm_cv")
+                                       )
+                                     )
+                 ),
           ),
-          ),
-        ),
         fluidRow(
           column(6, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("Area of applicabilty"),
                                        plotOutput(outputId = "aoa")
-                                     ),
-          ),
-          
-          ),
+                                       )
+                                     )
+                 ),
           column(6, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("Dissimilarity index"),
-                                       plotOutput(outputId = "di"),
+                                       plotOutput(outputId = "di")
+                                       )
                                      )
+                 ),
           ),
-          ),
-        ),
         br(),
         )
       )
@@ -678,7 +692,7 @@ server <- function(input, output, session) {
       set.seed(input$seed)
     }
     for (i in 1:length(input$cv_method)) {
-      models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred)
+      models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred, input$variable_selection)
       if (input$algorithm == "rf") {
         model_results[[i]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
       # print(model_results[[i]])
