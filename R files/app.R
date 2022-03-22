@@ -11,6 +11,8 @@ library(CAST)
 library(sf)
 library(shinythemes)
 library(gstat)
+library(rasterVis)
+library(scico)
 
 # Load functions ---------------------------------------------------------------
 
@@ -269,6 +271,7 @@ generate_predictors <- function(nlms){
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
 execute_model_training <- function(algorithm, cv_method, training_data, names_of_predictors, variable_selection) {
+  # Create train control depending on cv strategy
   if (cv_method == "random_10_fold_cv"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
   }
@@ -279,6 +282,7 @@ execute_model_training <- function(algorithm, cv_method, training_data, names_of
     indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
     ctrl <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
   }
+  # Train model depending on variable selection and algorithm
   if (variable_selection == "None"){
     model <- train(training_data[,names_of_predictors],
                    training_data$outcome,
@@ -287,13 +291,19 @@ execute_model_training <- function(algorithm, cv_method, training_data, names_of
                    trControl=ctrl)
   }
   else if (variable_selection == "FFS" & algorithm == "rf"){
-    model <- CAST::ffs(train(training_data[,names_of_predictors],
-                            training_data$outcome,
+    model <- CAST::ffs(predictors = training_data[,names_of_predictors],
+                            response = training_data$outcome,
                             method = algorithm,
-                            ntree = 500,
-                            trControl=ctrl))
+                            trControl=ctrl)
   }
-  
+  if (variable_selection == "RFE" & algorithm == "rf"){
+    model <- rfe(training_data[,names_of_predictors],
+                 training_data$outcome,
+                 method= algorithm,
+                 metric = "RMSE",
+                 trControl=ctrl)
+  }
+  return(model)
 }
 
 # Load data --------------------------------------------------------------------
@@ -312,6 +322,16 @@ study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 spatial_blocks <- nonuniform_sampling_polys(100, 5, 5)
 spatial_blocks <- spatial_blocks[1:2]
 # plot(spatial_blocks)
+
+# Creating coordinate points to include them in the surface_data
+coord_points <- point_grid
+coord_points$x <- st_coordinates(coord_points)[,1]
+coord_points$y <- st_coordinates(coord_points)[,2]
+coord_stack <- rasterise_and_stack(coord_points, 
+                                   which(names(coord_points)%in%c("x","y")), 
+                                   c("coord1", "coord2"))
+all_stack <- stack(coord_stack)
+
 
 # Define UI --------------------------------------------------------------------
 
@@ -563,6 +583,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                      )
                  ),
           ),
+        plotOutput(outputId = "test1"),
+        plotOutput(outputId = "test2"),
         br(),
         )
       )
@@ -584,6 +606,18 @@ server <- function(input, output, session) {
   
   output$predictors <- renderPlot({
     show_landscape(predictors())
+    # all_stack <- stack(coord_stack, predictors())
+    # predictors_surface <- as.data.frame(raster::extract(all_stack, point_grid))
+    # print(predictors_surface)
+    # ggplot(predictors_surface) +
+    #   geom_raster(aes(x = coord1, y = coord2, fill = distance_gradient)) +
+    #   # scale_fill_scico("", palette = 'roma') +
+    #   geom_raster(aes(x = coord1, y = coord2, fill = edge_gradient)) +
+    #   # scale_fill_scico("", palette = 'roma') +
+    #   geom_raster(aes(x = coord1, y = coord2 , fill = fbm_raster)) +
+    #   scale_fill_scico("", palette = 'roma') +
+    #   xlab("") + ylab("") +
+    #   theme_bw() + theme(legend.position = "bottom")
   })
   
   output$nlms_for_outcome <- renderUI({
@@ -604,7 +638,7 @@ server <- function(input, output, session) {
         set.seed(input$seed)
       }
       vals <- rnorm(dimgrid*dimgrid, sd=1)
-      vals <- vals * 0.1
+      vals <- vals * 0.05
       r_noise <- setValues(r_noise, vals)
       simulation <- simulation + r_noise
     }
@@ -617,7 +651,7 @@ server <- function(input, output, session) {
       s_noise <- predict(gstat_mod, point_grid, nsim = 1)
       s_noise <- rasterFromXYZ(cbind(st_coordinates(s_noise),
                                     as.matrix(as.data.frame(s_noise)[,1], ncol=1)))
-      s_noise <- s_noise * 0.1
+      s_noise <- s_noise * 0.05
       simulation <- simulation + s_noise
     }
     output$gen_prediction <- renderUI({
@@ -636,7 +670,13 @@ server <- function(input, output, session) {
   
   observeEvent(input$sim_outcome, {
     output$outcome <- renderPlot({
-      show_landscape(simulation())
+      all_stack <- stack(coord_stack, simulation())
+      sim_outcome_surface <- as.data.frame(raster::extract(all_stack, point_grid))
+      ggplot(sim_outcome_surface) +
+        geom_raster(aes(x = coord1, y = coord2, fill = outcome)) +
+        scale_fill_scico("", palette = 'roma') +
+        xlab("") + ylab("") +
+        theme_bw() + theme(legend.position = "bottom")
     })
   })
   
@@ -679,11 +719,12 @@ server <- function(input, output, session) {
   
   observeEvent(input$gen_prediction, {
     sampling_points <- sampling_points() # Generate sampling points
-    all_stack <- stack(simulation(), predictors()) # Create a stack of the outcome and all predictors
+    all_stack <- stack(coord_stack, simulation(), predictors()) # Create a stack of the outcome and all predictors
     pred <- names(predictors()) # Save all the names of the predictors so that the function knows which columns to use in the training
     sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
     training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
-    # print(head(training_data))
+    print(head(training_data))
+    
     models <- list()
     model_results <- list()
     # Create model and use two different cv_methods during training.
@@ -708,6 +749,9 @@ server <- function(input, output, session) {
     }
     names(models) <- input$cv_method
     print(models)
+    # output$test1 <- renderPlot(plot_ffs(models[[1]]))
+    # output$test2 <- renderPlot(plot_ffs(models[[1]] ,plotType="selected"))
+    # print(models$optVariables)
     # print(models)
     # print(names(models))
     # print(length(input$cv_method))
@@ -738,24 +782,52 @@ server <- function(input, output, session) {
       }
     }
     prediction <- predict(predictors(), models[[1]])
+    names(prediction) <- "prediction"
     dif <- simulation() - prediction
+    names(dif) <- "dif"
+    aoa <- aoa(predictors(), models[[1]])
+    
+    all_stack <- stack(all_stack, prediction, dif, aoa)
+    surface <- as.data.frame(raster::extract(all_stack, point_grid))
+    print(surface)
+    
+    # View(prediction)
     output$prediction <- renderPlot({
-      show_landscape(prediction)
+      # show_landscape(prediction)
+      ggplot(surface) +
+        geom_raster(aes(x = coord1, y = coord2, fill = prediction)) +
+        scale_fill_scico("", palette = 'roma') +
+        xlab("") + ylab("") +
+        theme_bw() + theme(legend.position = "bottom")
     })
     output$difference <- renderPlot({
-      show_landscape(dif)
+      # show_landscape(dif)
+      ggplot(surface) +
+        geom_raster(aes(x = coord1, y = coord2, fill = dif)) +
+        scale_fill_scico("", palette = 'roma') +
+        xlab("") + ylab("") +
+        theme_bw() + theme(legend.position = "bottom")
     })
     MAE <- round((sum(raster::extract(abs(dif), point_grid))/10000), digits = 4)
     output$true_mae <- renderText({
       paste("True MAE =", MAE,  sep = " ")
     })
-    aoa <- aoa(all_stack, models[[1]])
     # print(names(aoa))
     output$aoa <- renderPlot({
-      show_landscape(aoa$AOA)
+      # show_landscape(aoa$AOA)
+      ggplot(surface) +
+        geom_raster(aes(x = coord1, y = coord2, fill = AOA)) +
+        scale_fill_scico("Prediction", palette = 'roma') +
+        xlab("") + ylab("") +
+        theme_bw()
     })
     output$di <- renderPlot({
-      show_landscape(aoa$DI)
+      # show_landscape(aoa$DI)
+      ggplot(surface) +
+        geom_raster(aes(x = coord1, y = coord2, fill = DI)) +
+        scale_fill_scico("Prediction", palette = 'roma') +
+        xlab("") + ylab("") +
+        theme_bw()
     })
   })
 }
