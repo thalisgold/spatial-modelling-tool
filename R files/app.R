@@ -209,20 +209,20 @@ generate_predictors <- function(nlms){
   for (i in 1:length(nlms)) {
     if (nlms[i] %in% c("distance_gradient")){
       distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
-                                                origin = c(80, 10, 40, 5))
+                                                origin = c(40, 40, 40, 40))
       predictors$distance_gradient <- distance_gradient
     }
     else if(nlms[i] %in% c("edge_gradient")){
-      edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 30)
+      edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 25)
       predictors$edge_gradient <- edge_gradient
     }
     else if(nlms[i] %in% c("fbm_raster")){
-      fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
+      fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.4)
       predictors$fbm_raster <- fbm_raster
     }
     else if(nlms[i] %in% c("gaussian_field")){
       gaussian_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                          autocorr_range = 100,
+                                          autocorr_range = 40,
                                           mag_var = 8,
                                           nug = 5)
       predictors$gaussian_field <- gaussian_field
@@ -670,13 +670,14 @@ server <- function(input, output, session) {
   
   observeEvent(input$sim_outcome, {
     output$outcome <- renderPlot({
-      all_stack <- stack(coord_stack, simulation())
-      sim_outcome_surface <- as.data.frame(raster::extract(all_stack, point_grid))
-      ggplot(sim_outcome_surface) +
-        geom_raster(aes(x = coord1, y = coord2, fill = outcome)) +
-        scale_fill_scico("", palette = 'roma') +
-        xlab("") + ylab("") +
-        theme_bw() + theme(legend.position = "bottom")
+      show_landscape(simulation())
+      # all_stack <- stack(coord_stack, simulation())
+      # sim_outcome_surface <- as.data.frame(raster::extract(all_stack, point_grid))
+      # ggplot(sim_outcome_surface) +
+      #   geom_tile(aes(x = coord1, y = coord2, fill = outcome)) +
+      #   xlab("") + ylab("") +
+      #   theme_light() + theme(legend.position = "bottom") +
+      #   scale_fill_distiller("", palette = "YlOrRd")
     })
   })
   
@@ -714,7 +715,7 @@ server <- function(input, output, session) {
     ggplot() +
       geom_sf(data = sampling_points(), size = 1) +
       geom_sf(data = study_area,  alpha = 0) +
-      theme_bw()
+      theme_light()
   })
   
   observeEvent(input$gen_prediction, {
@@ -723,7 +724,7 @@ server <- function(input, output, session) {
     pred <- names(predictors()) # Save all the names of the predictors so that the function knows which columns to use in the training
     sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
     training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
-    print(head(training_data))
+    # print(head(training_data))
     
     models <- list()
     model_results <- list()
@@ -758,9 +759,9 @@ server <- function(input, output, session) {
     # print(model_results[[1]])
     # print(model_results[[2]])
     # print(model_results[[3]])
-    # output$random_10_fold_cv <- NULL
-    # output$loo_cv <- NULL
-    # output$sb_cv <- NULL
+    output$random_10_fold_cv <- NULL
+    output$loo_cv <- NULL
+    output$sb_cv <- NULL
     for (i in 1:length(input$cv_method)) {
       if (names(models[i]) == "random_10_fold_cv"){
         # print(i)
@@ -789,24 +790,29 @@ server <- function(input, output, session) {
     
     all_stack <- stack(all_stack, prediction, dif, aoa)
     surface <- as.data.frame(raster::extract(all_stack, point_grid))
-    print(surface)
+    # print(surface)
     
     # View(prediction)
     output$prediction <- renderPlot({
-      # show_landscape(prediction)
-      ggplot(surface) +
-        geom_raster(aes(x = coord1, y = coord2, fill = prediction)) +
-        scale_fill_scico("", palette = 'roma') +
-        xlab("") + ylab("") +
-        theme_bw() + theme(legend.position = "bottom")
+      # To rescale legend
+      # surface$prediction[1] <- 0
+      # surface$prediction[2] <- 1
+      prediction[1] <- 0
+      prediction[2] <- 1
+      show_landscape(prediction)
+      # ggplot(surface) +
+      #   geom_tile(aes(x = coord1, y = coord2, fill = prediction)) +
+      #   xlab("") + ylab("") +
+      #   theme_light() + theme(legend.position = "bottom") +
+      #   scale_fill_distiller("", palette = "YlOrRd")
     })
     output$difference <- renderPlot({
-      # show_landscape(dif)
-      ggplot(surface) +
-        geom_raster(aes(x = coord1, y = coord2, fill = dif)) +
-        scale_fill_scico("", palette = 'roma') +
-        xlab("") + ylab("") +
-        theme_bw() + theme(legend.position = "bottom")
+      show_landscape(dif)
+      # ggplot(surface) +
+      #   geom_raster(aes(x = coord1, y = coord2, fill = dif)) +
+      #   xlab("") + ylab("") +
+      #   theme_light() + theme(legend.position = "bottom") +
+      #   scale_fill_distiller("", palette = "RdYlGn")
     })
     MAE <- round((sum(raster::extract(abs(dif), point_grid))/10000), digits = 4)
     output$true_mae <- renderText({
@@ -814,20 +820,20 @@ server <- function(input, output, session) {
     })
     # print(names(aoa))
     output$aoa <- renderPlot({
-      # show_landscape(aoa$AOA)
-      ggplot(surface) +
-        geom_raster(aes(x = coord1, y = coord2, fill = AOA)) +
-        scale_fill_scico("Prediction", palette = 'roma') +
-        xlab("") + ylab("") +
-        theme_bw()
+      show_landscape(aoa$AOA)
+      # ggplot(surface) +
+        # geom_raster(aes(x = coord1, y = coord2, fill = AOA)) +
+        # xlab("") + ylab("") +
+        # theme_light() + theme(legend.position = "bottom") +
+        # scale_fill_distiller("", palette = "YlOrRd")
     })
     output$di <- renderPlot({
-      # show_landscape(aoa$DI)
-      ggplot(surface) +
-        geom_raster(aes(x = coord1, y = coord2, fill = DI)) +
-        scale_fill_scico("Prediction", palette = 'roma') +
-        xlab("") + ylab("") +
-        theme_bw()
+      show_landscape(aoa$DI)
+      # ggplot(surface) +
+      #   geom_raster(aes(x = coord1, y = coord2, fill = DI)) +
+      #   xlab("") + ylab("") +
+      #   theme_light() + theme(legend.position = "bottom") +
+      #   scale_fill_distiller("", palette = "YlOrRd")
     })
   })
 }
