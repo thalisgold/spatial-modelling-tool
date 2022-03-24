@@ -87,3 +87,8 @@ mod_NNDM <- train(zinc ~ x + y + dist + ffreq + soil,
                   tuneGrid = paramGrid, 
                   data = meuse, 
                   seed=12345)
+
+library(devtools) # oder remotes
+
+install_github("HannaMeyer/CAST")
+install_github("carlesmila/NNDM", force = TRUE)

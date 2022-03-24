@@ -256,6 +256,7 @@ generate_predictors <- function(nlms){
       predictors$random_rectangular_cluster <- random_rectangular_cluster
     }
   }
+  print("--------------------Finished generating predictors--------------------")
   return(predictors)
 }
 
@@ -269,7 +270,7 @@ generate_predictors <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
-execute_model_training <- function(algorithm, cv_method, training_data, predictors, variable_selection) {
+train_model <- function(algorithm, cv_method, training_data, predictors, variable_selection) {
   names_predictors <- names(predictors)
   # Create train control depending on cv strategy
   if (cv_method == "random_10_fold_cv"){
@@ -296,10 +297,11 @@ execute_model_training <- function(algorithm, cv_method, training_data, predicto
     # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
     # Compute NNDM indices
     NNDM_indices <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
+    print(NNDM_indices)
     #> nndm object
-    #> Total number of points: 155
-    #> Mean number of training points: 153.88
-    #> Minimum number of training points: 150
+    #> Total number of points: 50
+    #> Mean number of training points: 48.9
+    #> Minimum number of training points: 48
     # Plot NNDM functions
     # output$test2 <- renderPlot(plot(NNDM_indices))
     ctrl <- trainControl(method = "cv", savePredictions = T, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
@@ -330,6 +332,7 @@ execute_model_training <- function(algorithm, cv_method, training_data, predicto
 }
 
 # Load data --------------------------------------------------------------------
+print("-----------------------------App started------------------------------")
 
 # Create grids
 dimgrid <- 100
@@ -353,7 +356,6 @@ coord_points$y <- st_coordinates(coord_points)[,2]
 coord_stack <- rasterise_and_stack(coord_points, 
                                    which(names(coord_points)%in%c("x","y")), 
                                    c("coord1", "coord2"))
-all_stack <- stack(coord_stack)
 
 
 # Define UI --------------------------------------------------------------------
@@ -557,7 +559,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           ),
         conditionalPanel(condition = "input.gen_prediction",
                          wellPanel(
-                           textOutput(outputId = "true_mae")
+                           h4("True errors"),
+                           tableOutput(outputId = "true_errors")
                            )
                          ),
         fluidRow(
@@ -624,23 +627,11 @@ server <- function(input, output, session) {
     if (input$set_seed){
       set.seed(input$seed)
     }
-    generate_predictors(input$nlm)
+    return (generate_predictors(input$nlm))
   })
   
   output$predictors <- renderPlot({
     show_landscape(predictors())
-    # all_stack <- stack(coord_stack, predictors())
-    # predictors_surface <- as.data.frame(raster::extract(all_stack, point_grid))
-    # print(predictors_surface)
-    # ggplot(predictors_surface) +
-    #   geom_raster(aes(x = coord1, y = coord2, fill = distance_gradient)) +
-    #   # scale_fill_scico("", palette = 'roma') +
-    #   geom_raster(aes(x = coord1, y = coord2, fill = edge_gradient)) +
-    #   # scale_fill_scico("", palette = 'roma') +
-    #   geom_raster(aes(x = coord1, y = coord2 , fill = fbm_raster)) +
-    #   scale_fill_scico("", palette = 'roma') +
-    #   xlab("") + ylab("") +
-    #   theme_bw() + theme(legend.position = "bottom")
   })
   
   output$nlms_for_outcome <- renderUI({
@@ -687,20 +678,13 @@ server <- function(input, output, session) {
       
     simulation <- normalizeRaster(simulation)
     names(simulation) <- "outcome"
-    # print(simulation)
     return(simulation)
   })
   
   observeEvent(input$sim_outcome, {
     output$outcome <- renderPlot({
-      show_landscape(simulation())
-      # all_stack <- stack(coord_stack, simulation())
-      # sim_outcome_surface <- as.data.frame(raster::extract(all_stack, point_grid))
-      # ggplot(sim_outcome_surface) +
-      #   geom_tile(aes(x = coord1, y = coord2, fill = outcome)) +
-      #   xlab("") + ylab("") +
-      #   theme_light() + theme(legend.position = "bottom") +
-      #   scale_fill_distiller("", palette = "YlOrRd")
+      print("----------------Finished generating simulated outcome-----------------")
+      return(show_landscape(simulation()))
     })
   })
   
@@ -719,7 +703,6 @@ server <- function(input, output, session) {
   
   outputOptions(output, "clustered", suspendWhenHidden = FALSE) 
   
-  
   sampling_points <- reactive({
     req(input$n_sampling_points, input$dist_sampling_points)
     if (input$set_seed){
@@ -731,7 +714,6 @@ server <- function(input, output, session) {
     else{
       sampling_points <- clustered_sample(study_area, input$n_parents, input$n_offsprings, input$radius)
     }
-    # print(sampling_points)
   })
   
   output$sampling_points <- renderPlot({
@@ -742,155 +724,111 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gen_prediction, {
+    print("--------------------Started generating prediction---------------------")
     predictors <- predictors()
-    sampling_points <- sampling_points() # Generate sampling points
-    all_stack <- stack(coord_stack, simulation(), predictors()) # Create a stack of the outcome and all predictors
-    print(class(all_stack))
-    pred <- names(predictors()) # Save all the names of the predictors so that the function knows which columns to use in the training
-    sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
-    training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
-    # View(training_data)
-    # training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
-    # print(training_data_as_sfc)
-    # predictors <- stack(predictors(), coord_stack)
-    # predictors_df <- as.data.frame(extract(predictors, point_grid))
-    # predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
-    # print(predictors_as_sfc)
-    # # predictors_as_sfc 
-    # training_data_sp_df <- training_data
-    # coordinates(training_data_sp_df)=~coord1+coord2
-    # # print(class(training_data_sp_df))
-    # empvar <- variogram(outcome~1, data = training_data_sp_df)
-    # fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
-    # # print(fitvar)
-    # outrange <- fitvar$range[2]
-    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
-    # 
-    # # Compute NNDM indices
-    # NNDM_indices <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
-    # #> nndm object
-    # #> Total number of points: 155
-    # #> Mean number of training points: 153.88
-    # #> Minimum number of training points: 150
-    # # Plot NNDM functions
-    # output$test2 <- renderPlot(plot(NNDM_indices))
+    sampling_points <- sampling_points()
+    simulation <- simulation()
+    training_data_stack <- stack(coord_stack, simulation, predictors) # Create a stack of the simulated outcome, the coordinates and all predictors
+    predictors_and_coords <- as.data.frame(stack(coord_stack, predictors))
     
-    models <- list()
-    model_results <- list()
-    # Create model and use two different cv_methods during training.
-    # For the first passed cv-method create a prediction and aoa
+    sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
+    training_data <- as.data.frame(extract(training_data_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
+    
+    training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), crs=4326, remove = F)
+    predictors_and_coords_as_sfc <- st_as_sf(predictors_and_coords, coords = c("coord1", "coord2"),crs = 4326, remove = F)
+    # View(training_data_as_sfc)
+    print(class(predictors_and_coords_as_sfc)[1])
+    distribution <- plot_geodist(training_data_as_sfc, predictors_and_coords_as_sfc,
+                                 type = "feature",
+                                 showPlot = FALSE)
+    
+    # distribution$plot+scale_x_log10(labels=round)+ggtitle("Randomly distributed reference data")
+    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    
+    
+    
+    
+    models <- list() # Create list to store all models
+    model_results <- list() #Create list to store the cv results of the models
+    
+    # Create models and use the different cv_methods passed by the user
     if (input$set_seed){
       set.seed(input$seed)
     }
     for (i in 1:length(input$cv_method)) {
-      models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
+      models[[i]] <- train_model(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
       if (input$algorithm == "rf") {
-        model_results[[i]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
-      # print(model_results[[i]])
-      # dummy <- noquote(input$cv_method[i])
-      # print(dummy)
-      # print(output)
-      # output$eval(input$cv_method[i]) <- renderTable(model_results[[i]])
-      print(varImp(models[[i]]))
+        model_results[[i]] <- models[[i]]$results[c("RMSE", "Rsquared", "MAE")]
+        # print(varImp(models[[i]]))
       }
-      else {
+      else if(input$algorithm == "svmRadial"){
         model_results[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
       }
     }
-    names(models) <- input$cv_method
-    # print(models)
-    # output$test1 <- renderPlot(plot_ffs(models[[1]]))
-    # output$test2 <- renderPlot(plot_ffs(models[[1]] ,plotType="selected"))
-    # print(models$optVariables)
-    # print(models)
-    # print(names(models))
-    # print(length(input$cv_method))
-    # print(model_results[[1]])
-    # print(model_results[[2]])
-    # print(model_results[[3]])
+    names(models) <- input$cv_method # Name the models like their cv method!
+    
+    # Before writing new results, set all outputs to null so that the user sees the results from the latest calculations
     output$random_10_fold_cv <- NULL
     output$loo_cv <- NULL
     output$sb_cv <- NULL
     output$nndm_loo_cv <- NULL
+    
+    # Output the results on the right place:
     for (i in 1:length(input$cv_method)) {
       if (names(models[i]) == "random_10_fold_cv"){
-        # print(i)
         j <- i
-        # print(names(models[i]))
         output$random_10_fold_cv <- renderTable(expr = model_results[[j]], striped = TRUE, digits = 4)
       }
       if (names(models[i]) == "loo_cv"){
-        # print(i)
         k <- i
-        # print(names(models[i]))
         output$loo_cv <- renderTable(expr = model_results[[k]], striped = TRUE, digits = 4)
       }
       if (names(models[i]) == "sb_cv"){
-        # print(i)
         l <- i
-        # print(names(models[i]))
         output$sb_cv <- renderTable(expr = model_results[[l]], striped = TRUE, digits = 4)
       }
       if (names(models[i]) == "nndm_loo_cv"){
-        # print(i)
         m <- i
-        # print(names(models[i]))
         output$nndm_loo_cv <- renderTable(expr = model_results[[m]], striped = TRUE, digits = 4)
       }
     }
-    prediction <- predict(predictors(), models[[1]])
+    # For the first passed cv-method calculate a prediction the difference between
+    # the simulated outcome and the prediction, the aoa and the dissimilarity index
+    prediction <- predict(predictors, models[[1]])
     names(prediction) <- "prediction"
     dif <- simulation() - prediction
     names(dif) <- "dif"
-    aoa <- aoa(predictors(), models[[1]])
+    aoa <- aoa(predictors, models[[1]])
     
-    all_stack <- stack(all_stack, prediction, dif, aoa)
-    surface <- as.data.frame(raster::extract(all_stack, point_grid))
-    # print(surface)
-    
-    # View(prediction)
     output$prediction <- renderPlot({
-      # To rescale legend
-      # surface$prediction[1] <- 0
-      # surface$prediction[2] <- 1
+      # To rescale legend to values between 0 and 1 (same as simulated outcome):
       prediction[1] <- 0
       prediction[2] <- 1
       show_landscape(prediction)
-      # ggplot(surface) +
-      #   geom_tile(aes(x = coord1, y = coord2, fill = prediction)) +
-      #   xlab("") + ylab("") +
-      #   theme_light() + theme(legend.position = "bottom") +
-      #   scale_fill_distiller("", palette = "YlOrRd")
     })
+    
     output$difference <- renderPlot({
       show_landscape(dif)
-      # ggplot(surface) +
-      #   geom_raster(aes(x = coord1, y = coord2, fill = dif)) +
-      #   xlab("") + ylab("") +
-      #   theme_light() + theme(legend.position = "bottom") +
-      #   scale_fill_distiller("", palette = "RdYlGn")
     })
-    MAE <- round((sum(raster::extract(abs(dif), point_grid))/10000), digits = 4)
-    output$true_mae <- renderText({
-      paste("True MAE =", MAE,  sep = " ")
-    })
-    # print(names(aoa))
+
     output$aoa <- renderPlot({
       show_landscape(aoa$AOA)
-      # ggplot(surface) +
-        # geom_raster(aes(x = coord1, y = coord2, fill = AOA)) +
-        # xlab("") + ylab("") +
-        # theme_light() + theme(legend.position = "bottom") +
-        # scale_fill_distiller("", palette = "YlOrRd")
     })
+    
     output$di <- renderPlot({
       show_landscape(aoa$DI)
-      # ggplot(surface) +
-      #   geom_raster(aes(x = coord1, y = coord2, fill = DI)) +
-      #   xlab("") + ylab("") +
-      #   theme_light() + theme(legend.position = "bottom") +
-      #   scale_fill_distiller("", palette = "YlOrRd")
     })
+    
+    # Calculate absolute errors
+    dif_as_numeric <- raster::extract(abs(dif), point_grid)
+    RMSE <- sqrt(mean((dif_as_numeric)^2))
+    Rsquared <- (cor(as.data.frame(simulation), as.data.frame(prediction))^2)[1,1]
+    MAE <- mean(abs(dif_as_numeric))
+    true_errors <- data.frame(RMSE, Rsquared, MAE)
+    
+    output$true_errors <- renderTable(expr = true_errors, striped = TRUE, digits = 4)
+
+    print("-------------------Finished generating prediction---------------------")
   })
 }
 # Create the Shiny app object --------------------------------------------------
