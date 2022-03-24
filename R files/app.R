@@ -11,8 +11,7 @@ library(CAST)
 library(sf)
 library(shinythemes)
 library(gstat)
-library(rasterVis)
-library(scico)
+library(NNDM)
 
 # Load functions ---------------------------------------------------------------
 
@@ -270,7 +269,8 @@ generate_predictors <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
-execute_model_training <- function(algorithm, cv_method, training_data, names_of_predictors, variable_selection) {
+execute_model_training <- function(algorithm, cv_method, training_data, predictors, variable_selection) {
+  names_predictors <- names(predictors)
   # Create train control depending on cv strategy
   if (cv_method == "random_10_fold_cv"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
@@ -282,26 +282,49 @@ execute_model_training <- function(algorithm, cv_method, training_data, names_of
     indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
     ctrl <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
   }
+  else if(cv_method == "nndm_loo_cv"){
+    training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
+    predictors <- stack(predictors, coord_stack)
+    predictors_df <- as.data.frame(extract(predictors, point_grid))
+    predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
+    training_data_sp_df <- training_data
+    coordinates(training_data_sp_df)=~coord1+coord2
+    empvar <- variogram(outcome~1, data = training_data_sp_df)
+    fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
+    outrange <- fitvar$range[2]
+    # print(outrange)
+    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    # Compute NNDM indices
+    NNDM_indices <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
+    #> nndm object
+    #> Total number of points: 155
+    #> Mean number of training points: 153.88
+    #> Minimum number of training points: 150
+    # Plot NNDM functions
+    # output$test2 <- renderPlot(plot(NNDM_indices))
+    ctrl <- trainControl(method = "cv", savePredictions = T, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
+  }
   # Train model depending on variable selection and algorithm
   if (variable_selection == "None"){
-    model <- train(training_data[,names_of_predictors],
+    model <- train(training_data[,names_predictors],
                    training_data$outcome,
+                   tuneGrid=data.frame("mtry"=2),
                    method = algorithm,
                    importance = TRUE,
                    trControl=ctrl)
   }
   else if (variable_selection == "FFS" & algorithm == "rf"){
-    model <- CAST::ffs(predictors = training_data[,names_of_predictors],
+    model <- CAST::ffs(predictors = training_data[,names_predictors],
                             response = training_data$outcome,
                             method = algorithm,
                             trControl=ctrl)
   }
   if (variable_selection == "RFE" & algorithm == "rf"){
-    model <- rfe(training_data[,names_of_predictors],
+    model <- rfe(training_data[,names_predictors],
                  training_data$outcome,
                  method= algorithm,
                  metric = "RMSE",
-                 trControl=ctrl)
+                 rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs))
   }
   return(model)
 }
@@ -312,7 +335,7 @@ execute_model_training <- function(algorithm, cv_method, training_data, names_of
 dimgrid <- 100
 rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
 point_grid <- st_as_sf(rasterToPoints(rast_grid, spatial = TRUE))
-# plot(point_grid)
+# print((point_grid))
 
 # Create sampling areas
 study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
@@ -472,8 +495,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           label = "Cross-validation method:",
           choices = c("Random 10-fold CV" = "random_10_fold_cv",
                       "LOO CV" = "loo_cv",
-                      "Spatial block CV" = "sb_cv"
-                      # "sbLOO CV" = "sb_loo_cv"
+                      "Spatial block CV" = "sb_cv",
+                      "NNDM LOO CV" = "nndm_loo_cv"
                       ),
           multiple = TRUE,
         ),
@@ -562,7 +585,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
           column(3, conditionalPanel(condition = "input.gen_prediction",
                                      wellPanel(
                                        h4("NNDM LOO CV"),
-                                       tableOutput(outputId = "sb_loo_ndm_cv")
+                                       tableOutput(outputId = "nndm_loo_cv")
                                        )
                                      )
                  ),
@@ -719,12 +742,38 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gen_prediction, {
+    predictors <- predictors()
     sampling_points <- sampling_points() # Generate sampling points
     all_stack <- stack(coord_stack, simulation(), predictors()) # Create a stack of the outcome and all predictors
+    print(class(all_stack))
     pred <- names(predictors()) # Save all the names of the predictors so that the function knows which columns to use in the training
     sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
     training_data <- as.data.frame(extract(all_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
-    # print(head(training_data))
+    # View(training_data)
+    # training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
+    # print(training_data_as_sfc)
+    # predictors <- stack(predictors(), coord_stack)
+    # predictors_df <- as.data.frame(extract(predictors, point_grid))
+    # predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
+    # print(predictors_as_sfc)
+    # # predictors_as_sfc 
+    # training_data_sp_df <- training_data
+    # coordinates(training_data_sp_df)=~coord1+coord2
+    # # print(class(training_data_sp_df))
+    # empvar <- variogram(outcome~1, data = training_data_sp_df)
+    # fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
+    # # print(fitvar)
+    # outrange <- fitvar$range[2]
+    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    # 
+    # # Compute NNDM indices
+    # NNDM_indices <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
+    # #> nndm object
+    # #> Total number of points: 155
+    # #> Mean number of training points: 153.88
+    # #> Minimum number of training points: 150
+    # # Plot NNDM functions
+    # output$test2 <- renderPlot(plot(NNDM_indices))
     
     models <- list()
     model_results <- list()
@@ -734,7 +783,7 @@ server <- function(input, output, session) {
       set.seed(input$seed)
     }
     for (i in 1:length(input$cv_method)) {
-      models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, pred, input$variable_selection)
+      models[[i]] <- execute_model_training(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
       if (input$algorithm == "rf") {
         model_results[[i]] <- models[[i]]$results[c("mtry", "RMSE", "Rsquared", "MAE")]
       # print(model_results[[i]])
@@ -742,14 +791,14 @@ server <- function(input, output, session) {
       # print(dummy)
       # print(output)
       # output$eval(input$cv_method[i]) <- renderTable(model_results[[i]])
-      # print(varImp(models[[i]]))
+      print(varImp(models[[i]]))
       }
       else {
         model_results[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
       }
     }
     names(models) <- input$cv_method
-    print(models)
+    # print(models)
     # output$test1 <- renderPlot(plot_ffs(models[[1]]))
     # output$test2 <- renderPlot(plot_ffs(models[[1]] ,plotType="selected"))
     # print(models$optVariables)
@@ -762,6 +811,7 @@ server <- function(input, output, session) {
     output$random_10_fold_cv <- NULL
     output$loo_cv <- NULL
     output$sb_cv <- NULL
+    output$nndm_loo_cv <- NULL
     for (i in 1:length(input$cv_method)) {
       if (names(models[i]) == "random_10_fold_cv"){
         # print(i)
@@ -780,6 +830,12 @@ server <- function(input, output, session) {
         l <- i
         # print(names(models[i]))
         output$sb_cv <- renderTable(expr = model_results[[l]], striped = TRUE, digits = 4)
+      }
+      if (names(models[i]) == "nndm_loo_cv"){
+        # print(i)
+        m <- i
+        # print(names(models[i]))
+        output$nndm_loo_cv <- renderTable(expr = model_results[[m]], striped = TRUE, digits = 4)
       }
     }
     prediction <- predict(predictors(), models[[1]])
