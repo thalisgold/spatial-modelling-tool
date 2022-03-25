@@ -297,7 +297,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
     # Compute NNDM indices
     NNDM_indices <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
-    print(NNDM_indices)
+    # print(NNDM_indices)
     #> nndm object
     #> Total number of points: 50
     #> Mean number of training points: 48.9
@@ -318,6 +318,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   else if (variable_selection == "FFS" & algorithm == "rf"){
     model <- CAST::ffs(predictors = training_data[,names_predictors],
                             response = training_data$outcome,
+                            tuneGrid=data.frame("mtry"=2),
                             method = algorithm,
                             trControl=ctrl)
   }
@@ -325,6 +326,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     model <- rfe(training_data[,names_predictors],
                  training_data$outcome,
                  method= algorithm,
+                 tuneGrid=data.frame("mtry"=2),
                  metric = "RMSE",
                  rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs))
   }
@@ -542,14 +544,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                        )
                                      )
                  ),
-          column(4, conditionalPanel(condition = "input.gen_prediction",
+          column(4, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("Prediction"),
                                        plotOutput(outputId = "prediction")
                                        )
                                      )
                  ),
-          column(4, conditionalPanel(condition = "input.gen_prediction",
+          column(4, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("Difference"),
                                        plotOutput(outputId = "difference")
@@ -557,35 +559,35 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                      )
                  ),
           ),
-        conditionalPanel(condition = "input.gen_prediction",
+        conditionalPanel(condition = "output.finished_prediction",
                          wellPanel(
                            h4("True errors"),
                            tableOutput(outputId = "true_errors")
                            )
                          ),
         fluidRow(
-          column(3, conditionalPanel(condition = "input.gen_prediction",
+          column(3, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("Random 10-fold CV"),
                                        tableOutput(outputId = "random_10_fold_cv")
                                        )
                                      )
                  ),
-          column(3, conditionalPanel(condition = "input.gen_prediction",
+          column(3, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("LOO CV"),
                                        tableOutput(outputId = "loo_cv")
                                        )
                                      )
                  ),
-          column(3, conditionalPanel(condition = "input.gen_prediction",
+          column(3, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("Spatial block CV"),
                                        tableOutput(outputId = "sb_cv")
                                        )
                                      )
           ),
-          column(3, conditionalPanel(condition = "input.gen_prediction",
+          column(3, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("NNDM LOO CV"),
                                        tableOutput(outputId = "nndm_loo_cv")
@@ -594,14 +596,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                  ),
           ),
         fluidRow(
-          column(6, conditionalPanel(condition = "input.gen_prediction",
+          column(6, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("Area of applicabilty"),
                                        plotOutput(outputId = "aoa")
                                        )
                                      )
                  ),
-          column(6, conditionalPanel(condition = "input.gen_prediction",
+          column(6, conditionalPanel(condition = "output.finished_prediction",
                                      wellPanel(
                                        h4("Dissimilarity index"),
                                        plotOutput(outputId = "di")
@@ -724,23 +726,36 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gen_prediction, {
+    # Before writing new results, set all outputs to null so that the user sees the results from the latest calculations
+    output$dif <- NULL
+    output$prediction <- NULL
+    output$true_errors <- NULL
+    output$random_10_fold_cv <- NULL
+    output$loo_cv <- NULL
+    output$sb_cv <- NULL
+    output$nndm_loo_cv <- NULL
+    output$aoa <- NULL
+    output$di <- NULL
     print("--------------------Started generating prediction---------------------")
     predictors <- predictors()
     sampling_points <- sampling_points()
+    # st_write(sampling_points, "./sampling_points.shp")
     simulation <- simulation()
-    training_data_stack <- stack(coord_stack, simulation, predictors) # Create a stack of the simulated outcome, the coordinates and all predictors
+    training_data_stack <- stack(coord_stack, simulation, predictors) # Create a stack of the simulated outcome, the coordinates(to calculate nndm indices later) and all predictors
+    # writeRaster(training_data_stack, "./training_data_stack.grd")
     predictors_and_coords <- as.data.frame(stack(coord_stack, predictors))
     
     sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
     training_data <- as.data.frame(extract(training_data_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the outcome on the positions of the sampling points
     
-    training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), crs=4326, remove = F)
-    predictors_and_coords_as_sfc <- st_as_sf(predictors_and_coords, coords = c("coord1", "coord2"),crs = 4326, remove = F)
+    training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
+    predictors_and_coords_as_sfc <- st_as_sf(predictors_and_coords, coords = c("coord1", "coord2"), remove = F)
+
     # View(training_data_as_sfc)
-    print(class(predictors_and_coords_as_sfc)[1])
-    distribution <- plot_geodist(training_data_as_sfc, predictors_and_coords_as_sfc,
-                                 type = "feature",
-                                 showPlot = FALSE)
+    # print(class(predictors_and_coords_as_sfc)[1])
+    # distribution <- plot_geodist(training_data_as_sfc, predictors_and_coords_as_sfc,
+    #                              type = "feature",
+    #                              showPlot = FALSE)
     
     # distribution$plot+scale_x_log10(labels=round)+ggtitle("Randomly distributed reference data")
     # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
@@ -759,19 +774,14 @@ server <- function(input, output, session) {
       models[[i]] <- train_model(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
       if (input$algorithm == "rf") {
         model_results[[i]] <- models[[i]]$results[c("RMSE", "Rsquared", "MAE")]
-        # print(varImp(models[[i]]))
+        print(models[[i]])
+        print(varImp(models[[i]]))
       }
       else if(input$algorithm == "svmRadial"){
         model_results[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
       }
     }
     names(models) <- input$cv_method # Name the models like their cv method!
-    
-    # Before writing new results, set all outputs to null so that the user sees the results from the latest calculations
-    output$random_10_fold_cv <- NULL
-    output$loo_cv <- NULL
-    output$sb_cv <- NULL
-    output$nndm_loo_cv <- NULL
     
     # Output the results on the right place:
     for (i in 1:length(input$cv_method)) {
@@ -814,7 +824,7 @@ server <- function(input, output, session) {
     output$aoa <- renderPlot({
       show_landscape(aoa$AOA)
     })
-    
+
     output$di <- renderPlot({
       show_landscape(aoa$DI)
     })
@@ -827,6 +837,12 @@ server <- function(input, output, session) {
     true_errors <- data.frame(RMSE, Rsquared, MAE)
     
     output$true_errors <- renderTable(expr = true_errors, striped = TRUE, digits = 4)
+    
+    output$finished_prediction <- reactive({
+      return(TRUE)
+    })
+
+    outputOptions(output, "finished_prediction", suspendWhenHidden = FALSE) 
 
     print("-------------------Finished generating prediction---------------------")
   })
