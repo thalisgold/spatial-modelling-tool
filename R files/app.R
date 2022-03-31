@@ -515,11 +515,22 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
         
         # When the result has been calculated, it is possible to make a prediction.
         uiOutput("gen_prediction"),
-      ),
+        conditionalPanel(condition = "output.finished_prediction",
+                         checkboxInput(
+                           inputId = "show_aoa",
+                           label = "Show AOA",
+                           value = FALSE
+                           ),
+                         checkboxInput(
+                           inputId = "show_di",
+                           label = "Show DI",
+                           value = FALSE
+                           ),
+                         ),
+        
+        ),
       
       mainPanel(
-        # conditionalPanel(condition = "input.generate_predictors",
-        #   h4("Predictors and sampling points"),
         fluidRow(
           column(6, conditionalPanel(condition = "input.generate_predictors",
                                      wellPanel(
@@ -536,81 +547,192 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                      )
                  ),
           ),
-        fluidRow(
-          column(4, conditionalPanel(condition = "input.sim_outcome",
-                                     wellPanel(
-                                       h4("Simulated outcome"),
-                                       plotOutput(outputId = "outcome")
-                                       )
-                                     )
-                 ),
-          column(4, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("Prediction"),
-                                       plotOutput(outputId = "prediction")
-                                       )
-                                     )
-                 ),
-          column(4, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("Difference"),
-                                       plotOutput(outputId = "difference")
-                                       )
-                                     )
-                 ),
-          ),
-        conditionalPanel(condition = "output.finished_prediction",
-                         wellPanel(
-                           h4("True errors"),
-                           tableOutput(outputId = "true_errors")
-                           )
+        # conditionalPanel(condition = "(input.sim_outcome && input.variable_selection != 'None')",
+        #                  fluidRow(
+        #                    column(12, 
+        #                           wellPanel(
+        #                             h4("Simulated outcome"),
+        #                             plotOutput(outputId = "outcome")
+        #                             ),
+        #                           ),
+        #                    ),
+        #                  ),
+        conditionalPanel(condition = "input.sim_outcome",
+                         fluidRow(
+                           column(4, 
+                                  wellPanel(
+                                    h4("Simulated outcome"),
+                                    plotOutput(outputId = "outcome")
+                                    ),
+                                  ),
+                           column(4, conditionalPanel(condition = "output.finished_prediction && input.variable_selection == 'None'",
+                                                      wellPanel(
+                                                        h4("Prediction"),
+                                                        plotOutput(outputId = "prediction_of_first_model")
+                                                        )
+                                                      )
+                                  ),
+                           column(4, conditionalPanel(condition = "output.finished_prediction && input.variable_selection == 'None'",
+                                                      wellPanel(
+                                                        h4("Difference"),
+                                                        plotOutput(outputId = "dif_of_first_model")
+                                                        )
+                                                      )
+                                  ),
+                           ),
                          ),
-        fluidRow(
-          column(3, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("Random 10-fold CV"),
-                                       tableOutput(outputId = "random_10_fold_cv")
-                                       )
-                                     )
-                 ),
-          column(3, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("LOO CV"),
-                                       tableOutput(outputId = "loo_cv")
-                                       )
-                                     )
-                 ),
-          column(3, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("Spatial block CV"),
-                                       tableOutput(outputId = "sb_cv")
-                                       )
-                                     )
-          ),
-          column(3, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("NNDM LOO CV"),
-                                       tableOutput(outputId = "nndm_loo_cv")
-                                       )
-                                     )
-                 ),
-          ),
-        fluidRow(
-          column(6, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("Area of applicabilty"),
-                                       plotOutput(outputId = "aoa")
-                                       )
-                                     )
-                 ),
-          column(6, conditionalPanel(condition = "output.finished_prediction",
-                                     wellPanel(
-                                       h4("Dissimilarity index"),
-                                       plotOutput(outputId = "di")
-                                       )
-                                     )
-                 ),
-          ),
+        conditionalPanel(condition = "output.finished_prediction",
+                         fluidRow(
+                           column(3,
+                                  wellPanel(
+                                    h4("Random 10-fold CV"),
+                                    ),
+                                  conditionalPanel(condition = "output.cv_methods.includes('random_10_fold_cv')",
+                                                   wellPanel(
+                                                     h5("True error:"),
+                                                     tableOutput(outputId = "random_10_fold_cv_true_error"),
+                                                     h5("CV error:"),
+                                                     tableOutput(outputId = "random_10_fold_cv_cv_error"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Prediction:"),
+                                                     plotOutput(outputId = "random_10_fold_cv_prediction"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Difference:"),
+                                                     plotOutput(outputId = "random_10_fold_cv_difference"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('random_10_fold_cv'))",
+                                                   wellPanel(
+                                                     h5("AOA:"),
+                                                     plotOutput(outputId = "random_10_fold_cv_aoa"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('random_10_fold_cv'))",
+                                                   wellPanel(
+                                                     h5("DI:"),
+                                                     plotOutput(outputId = "random_10_fold_cv_di"),
+                                                     )
+                                                   ),
+                                  ),
+                           column(3,
+                                  wellPanel(
+                                    h4("LOO CV"),
+                                    ),
+                                  conditionalPanel(condition = "output.cv_methods.includes('loo_cv')",
+                                                   wellPanel(
+                                                     h5("True error:"),
+                                                     tableOutput(outputId = "loo_cv_true_error"),
+                                                     h5("CV error:"),
+                                                     tableOutput(outputId = "loo_cv_cv_error"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Prediction:"),
+                                                     plotOutput(outputId = "loo_cv_prediction"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Difference:"),
+                                                     plotOutput(outputId = "loo_cv_difference"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('loo_cv'))",
+                                                   wellPanel(
+                                                     h5("AOA:"),
+                                                     plotOutput(outputId = "loo_cv_aoa"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('loo_cv'))",
+                                                   wellPanel(
+                                                     h5("DI:"),
+                                                     plotOutput(outputId = "loo_cv_di"),
+                                                     )
+                                                   ),
+                                  ),
+                           column(3,
+                                  wellPanel(
+                                    h4("Spatial block CV"),
+                                    ),
+                                  conditionalPanel(condition = "output.cv_methods.includes('sb_cv')",
+                                                   wellPanel(
+                                                     h5("True error:"),
+                                                     tableOutput(outputId = "sb_cv_true_error"),
+                                                     h5("CV error:"),
+                                                     tableOutput(outputId = "sb_cv_cv_error"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Prediction:"),
+                                                     plotOutput(outputId = "sb_cv_prediction"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Difference:"),
+                                                     plotOutput(outputId = "sb_cv_difference"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('sb_cv'))",
+                                                   wellPanel(
+                                                     h5("AOA:"),
+                                                     plotOutput(outputId = "sb_cv_aoa"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('sb_cv'))",
+                                                   wellPanel(
+                                                     h5("DI:"),
+                                                     plotOutput(outputId = "sb_cv_di"),
+                                                     )
+                                                   ),
+                                  ),
+                           column(3,                                    
+                                  wellPanel(
+                                    h4("NNDM LOO CV"),
+                                    ),
+                                  conditionalPanel(condition = "output.cv_methods.includes('nndm_loo_cv')",
+                                                   wellPanel(
+                                                     h5("True error:"),
+                                                     tableOutput(outputId = "nndm_loo_cv_true_error"),
+                                                     h5("CV error:"),
+                                                     tableOutput(outputId = "nndm_loo_cv_cv_error"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Prediction:"),
+                                                     plotOutput(outputId = "nndm_loo_cv_prediction"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.variable_selection != 'None')",
+                                                   wellPanel(
+                                                     h5("Difference:"),
+                                                     plotOutput(outputId = "nndm_loo_cv_difference"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('nndm_loo_cv'))",
+                                                   wellPanel(
+                                                     h5("AOA:"),
+                                                     plotOutput(outputId = "nndm_loo_cv_aoa"),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('nndm_loo_cv'))",
+                                                   wellPanel(
+                                                     h5("DI:"),
+                                                     plotOutput(outputId = "nndm_loo_cv_di"),
+                                                     )
+                                                   ),
+                                  ),
+                           ),
+                         ),
         plotOutput(outputId = "test1"),
         plotOutput(outputId = "test2"),
         br(),
@@ -684,11 +806,12 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$sim_outcome, {
-    output$outcome <- renderPlot({
-      print("----------------Finished generating simulated outcome-----------------")
-      return(show_landscape(simulation()))
-    })
+      output$outcome <- renderPlot({
+        print("----------------Finished generating simulated outcome-----------------")
+        return(show_landscape(simulation()))
+      })
   })
+  
   
   distInput <- reactive({
     switch(input$dist_sampling_points,
@@ -726,16 +849,6 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gen_prediction, {
-    # Before writing new results, set all outputs to null so that the user sees the results from the latest calculations
-    output$dif <- NULL
-    output$prediction <- NULL
-    output$true_errors <- NULL
-    output$random_10_fold_cv <- NULL
-    output$loo_cv <- NULL
-    output$sb_cv <- NULL
-    output$nndm_loo_cv <- NULL
-    output$aoa <- NULL
-    output$di <- NULL
     print("--------------------Started generating prediction---------------------")
     predictors <- predictors()
     sampling_points <- sampling_points()
@@ -764,79 +877,109 @@ server <- function(input, output, session) {
     
     
     models <- list() # Create list to store all models
-    model_results <- list() #Create list to store the cv results of the models
-    
+    predictions <- list()
+    dif <- list()
+    aoa <- list()
+    cv_errors <- list() #Create list to store the cv results of the models
+    true_errors <- list()
     # Create models and use the different cv_methods passed by the user
     if (input$set_seed){
       set.seed(input$seed)
     }
     for (i in 1:length(input$cv_method)) {
+      # Generate models
       models[[i]] <- train_model(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
+      # Generate predictions
+      predictions[[i]] <- predict(predictors, models[[i]])
+      names(predictions[[i]]) <- "prediction"
+      # Generate aoa and di
+      aoa[[i]] <- aoa(predictors, models[[i]])
+      # Calculate true errors
+      dif[[i]] <- simulation() - predictions[[i]]
+      dif_as_numeric <- raster::extract(abs(dif[[i]]), point_grid)
+      RMSE <- sqrt(mean((dif_as_numeric)^2))
+      Rsquared <- (cor(as.data.frame(simulation), as.data.frame(predictions[[i]]))^2)[1,1]
+      MAE <- mean(abs(dif_as_numeric))
+      true_error <- data.frame(RMSE, Rsquared, MAE)
+      true_errors[[i]] <- true_error
       if (input$algorithm == "rf") {
-        model_results[[i]] <- models[[i]]$results[c("RMSE", "Rsquared", "MAE")]
-        print(models[[i]])
-        print(varImp(models[[i]]))
+        cv_errors[[i]] <- models[[i]]$results[c("RMSE", "Rsquared", "MAE")]
+        # print(models[[i]])
+        # print(varImp(models[[i]], scale = FALSE))
       }
       else if(input$algorithm == "svmRadial"){
-        model_results[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
+        cv_errors[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
       }
     }
     names(models) <- input$cv_method # Name the models like their cv method!
+    # print(models)
+    # print(predictions)
+    # print(dif)
+    # print(aoa)
+    # print(true_errors)
+    # print(cv_errors)
     
     # Output the results on the right place:
     for (i in 1:length(input$cv_method)) {
       if (names(models[i]) == "random_10_fold_cv"){
         j <- i
-        output$random_10_fold_cv <- renderTable(expr = model_results[[j]], striped = TRUE, digits = 4)
+        output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4)
+        output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4)
+        output$random_10_fold_cv_prediction <- renderPlot(show_landscape(predictions[[j]]))
+        output$random_10_fold_cv_difference <- renderPlot(show_landscape(dif[[j]]))
+        output$random_10_fold_cv_aoa <- renderPlot(show_landscape(aoa[[j]]$AOA))
+        output$random_10_fold_cv_di <- renderPlot(show_landscape(aoa[[j]]$DI))
       }
       if (names(models[i]) == "loo_cv"){
         k <- i
-        output$loo_cv <- renderTable(expr = model_results[[k]], striped = TRUE, digits = 4)
+        output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4)
+        output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4)
+        output$loo_cv_prediction <- renderPlot(show_landscape(predictions[[k]]))
+        output$loo_cv_difference <- renderPlot(show_landscape(dif[[k]]))
+        output$loo_cv_aoa <- renderPlot(show_landscape(aoa[[k]]$AOA))
+        output$loo_cv_di <- renderPlot(show_landscape(aoa[[k]]$DI))
       }
       if (names(models[i]) == "sb_cv"){
         l <- i
-        output$sb_cv <- renderTable(expr = model_results[[l]], striped = TRUE, digits = 4)
+        output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4)
+        output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4)
+        output$sb_cv_prediction <- renderPlot(show_landscape(predictions[[l]]))
+        output$sb_cv_difference <- renderPlot(show_landscape(dif[[l]]))
+        output$sb_cv_aoa <- renderPlot(show_landscape(aoa[[l]]$AOA))
+        output$sb_cv_di <- renderPlot(show_landscape(aoa[[l]]$DI))
       }
       if (names(models[i]) == "nndm_loo_cv"){
         m <- i
-        output$nndm_loo_cv <- renderTable(expr = model_results[[m]], striped = TRUE, digits = 4)
+        output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4)
+        output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4)
+        output$nndm_loo_cv_prediction <- renderPlot(show_landscape(predictions[[m]]))
+        output$nndm_loo_cv_difference <- renderPlot(show_landscape(dif[[m]]))
+        output$nndm_loo_cv_aoa <- renderPlot(show_landscape(aoa[[m]]$AOA))
+        output$nndm_loo_cv_di <- renderPlot(show_landscape(aoa[[m]]$DI))
       }
     }
     # For the first passed cv-method calculate a prediction the difference between
-    # the simulated outcome and the prediction, the aoa and the dissimilarity index
-    prediction <- predict(predictors, models[[1]])
-    names(prediction) <- "prediction"
-    dif <- simulation() - prediction
-    names(dif) <- "dif"
-    aoa <- aoa(predictors, models[[1]])
+    # the simulated outcome and the prediction
     
-    output$prediction <- renderPlot({
+    output$prediction_of_first_model <- renderPlot({
       # To rescale legend to values between 0 and 1 (same as simulated outcome):
-      prediction[1] <- 0
-      prediction[2] <- 1
-      show_landscape(prediction)
+      predictions[[i]][1] <- 0
+      predictions[[i]][2] <- 1
+      show_landscape(predictions[[i]])
     })
     
-    output$difference <- renderPlot({
-      show_landscape(dif)
+    output$dif_of_first_model <- renderPlot({
+      show_landscape(dif[[i]])
     })
-
-    output$aoa <- renderPlot({
-      show_landscape(aoa$AOA)
+    output$cv_methods <- reactive({
+      return(names(models))
     })
-
-    output$di <- renderPlot({
-      show_landscape(aoa$DI)
-    })
+    outputOptions(output, "cv_methods", suspendWhenHidden = FALSE)
     
-    # Calculate absolute errors
-    dif_as_numeric <- raster::extract(abs(dif), point_grid)
-    RMSE <- sqrt(mean((dif_as_numeric)^2))
-    Rsquared <- (cor(as.data.frame(simulation), as.data.frame(prediction))^2)[1,1]
-    MAE <- mean(abs(dif_as_numeric))
-    true_errors <- data.frame(RMSE, Rsquared, MAE)
-    
-    output$true_errors <- renderTable(expr = true_errors, striped = TRUE, digits = 4)
+    # output$variable_selection <- reactive({
+    #   return(input$variable_selection)
+    # })
+    # outputOptions(output, "variable_selection", suspendWhenHidden = FALSE) 
     
     output$finished_prediction <- reactive({
       return(TRUE)
