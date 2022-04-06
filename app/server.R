@@ -14,7 +14,7 @@ server <- function(input, output, session) {
   })
   
   output$nlms_for_outcome <- renderUI({
-    selectInput("nlms_for_outcome", label = "Simulate outcome from following NLMs:", choices = input$nlm, multiple = TRUE, selected = c("distance_gradient", "edge_gradient"))
+    selectInput("nlms_for_outcome", label = "Simulate the outcome from following NLMs:", choices = input$nlm, multiple = TRUE, selected = c("distance_gradient", "edge_gradient"))
   })
   
   simulation <- eventReactive(input$sim_outcome, {
@@ -30,7 +30,7 @@ server <- function(input, output, session) {
     else {
       expression <- input$expression
     }
-    print(expression)
+    # print(expression)
     simulation <- eval(parse(text=expression))
     if (input$r_noise == TRUE){
       r_noise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
@@ -57,7 +57,7 @@ server <- function(input, output, session) {
     output$gen_prediction <- renderUI({
       conditionalPanel(condition = "input.cv_method.length > 0",
                        actionButton(
-                         inputId = "gen_prediction", label = "Generate prediction"
+                         inputId = "gen_prediction", label = "Train model and generate prediction"
                        )
       )
     })

@@ -12,6 +12,7 @@ library(sf)
 library(shinythemes)
 library(gstat)
 library(NNDM)
+library(fresh)
 
 # Load functions ---------------------------------------------------------------
 
@@ -222,25 +223,25 @@ generate_predictors <- function(nlms){
       edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 25)
       predictors$edge_gradient <- edge_gradient
     }
-    else if(nlms[i] %in% c("fbm_raster")){
-      fbm_raster  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.4)
-      predictors$fbm_raster <- fbm_raster
+    else if(nlms[i] %in% c("fractional_brownian_motion")){
+      fractional_brownian_motion  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.4)
+      predictors$fractional_brownian_motion <- fractional_brownian_motion
     }
-    else if(nlms[i] %in% c("gaussian_field")){
-      gaussian_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
+    else if(nlms[i] %in% c("gaussian_random_field")){
+      gaussian_random_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
                                           autocorr_range = 40,
                                           mag_var = 8,
                                           nug = 5)
-      predictors$gaussian_field <- gaussian_field
+      predictors$gaussian_random_field <- gaussian_random_field
     }
-    else if(nlms[i] %in% c("mosaictess")){
-      mosaictess <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
-      predictors$mosaictess <- mosaictess
+    else if(nlms[i] %in% c("polygonal_landscapes")){
+      polygonal_landscapes <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
+      predictors$polygonal_landscapes <- polygonal_landscapes
     }
-    else if(nlms[i] %in% c("neigh_raster")){
-      neigh_raster <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
+    else if(nlms[i] %in% c("random_neighbourhood")){
+      random_neighbourhood <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
                                 p_empty = 0.1, categories = 5, neighbourhood = 8)
-      predictors$neigh_raster <- neigh_raster
+      predictors$random_neighbourhood <- random_neighbourhood
     }
     else if(nlms[i] %in% c("planar_gradient")){
       planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)

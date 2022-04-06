@@ -2,7 +2,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                  tabPanel("App",
                           sidebarLayout(
                             sidebarPanel(
-                              
+                              width = 3,
                               # It is possible to plant a seed in order to always achieve the same results
                               # and thus comparability.
                               checkboxInput(
@@ -22,8 +22,8 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                  width = "30%"
                                                )
                               ),
-                              
-                              h4("Parameters for predictors"),
+                              br(),
+                              h4("Step 1: Generation of the predictors"),
                               
                               # Choose multiple NLMs to generate predictors.
                               selectInput(
@@ -31,31 +31,30 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                 label = "Choose some NLMs as predictors:",
                                 choices = c("Distance gradient" = "distance_gradient",
                                             "Edge gradient" = "edge_gradient",
-                                            "Fractional brownian motion" = "fbm_raster",
-                                            "Gaussian random field" = "gaussian_field",
+                                            "Fractional brownian motion" = "fractional_brownian_motion",
+                                            "Gaussian random field" = "gaussian_random_field",
                                             "Planar gradient" = "planar_gradient",
-                                            "Polygonal landscapes" = "mosaictess",
+                                            "Polygonal landscapes" = "polygonal_landscapes",
                                             "Random" = "random",
                                             # "Random cluster" = "random_cluster",
-                                            "Random neighbourhood" = "neigh_raster",
+                                            "Random neighbourhood" = "random_neighbourhood",
                                             "Random rectangular cluster" = "random_rectangular_cluster"),
                                 multiple = TRUE,
-                                selected = c("distance_gradient", "edge_gradient", "fbm_raster")
+                                selected = c("distance_gradient", "edge_gradient", "fractional_brownian_motion")
                               ),
                               
-                              # If more than 2 were chosen, it is possible to generate the predictors.
                               conditionalPanel(condition = "input.nlm.length >= 1",
                                                actionButton(
                                                  inputId = "generate_predictors",
                                                  label = "Generate selected predictors"
                                                )
                               ),
-                              
-                              p(),
-                              
+                              br(),
+                              br(),
+                              h4("Step 2: Simulation of the outcome"),
                               # Select from which of the already generated predictors the result should be simulated.
                               uiOutput("nlms_for_outcome"),
-                              textAreaInput(inputId = "expression", label = "Enter an expression for how the result is to be simulated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
+                              textAreaInput(inputId = "expression", label = "Enter an expression that describes how the outcome is to be calculated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
                               checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
                               checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
                               
@@ -67,8 +66,10 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                )
                               ),
                               
+                              br(),
+                              br(),
                               # Select the number and distribution of the sampling points.
-                              h4("Parameters for training data"),
+                              h4("Step 3: Selection of parameters for the sampling points"),
                               selectInput(
                                 inputId = "dist_sampling_points",
                                 label = "Distribution of sampling points:",
@@ -122,7 +123,9 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                )
                               ),
                               
-                              h4("Modelling"),
+                              br(),
+                              br(),
+                              h4("Step 4: Model training and prediction"),
                               radioButtons(
                                 inputId = "algorithm", 
                                 label = "Choose algorithm for training:",
@@ -153,6 +156,9 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                               # When the result has been calculated, it is possible to make a prediction.
                               uiOutput("gen_prediction"),
                               conditionalPanel(condition = "output.finished_prediction",
+                                               br(),
+                                               br(),
+                                               h4("Display options:"),
                                                checkboxInput(
                                                  inputId = "show_aoa",
                                                  label = "Show AOA",
@@ -168,6 +174,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                             ),
                             
                             mainPanel(
+                              width = 9,
                               fluidRow(
                                 column(6, conditionalPanel(condition = "input.generate_predictors",
                                                            wellPanel(
