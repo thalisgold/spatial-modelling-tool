@@ -12,7 +12,6 @@ library(sf)
 library(shinythemes)
 library(gstat)
 library(NNDM)
-library(DT)
 
 # Load functions ---------------------------------------------------------------
 
