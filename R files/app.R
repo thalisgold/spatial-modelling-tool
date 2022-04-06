@@ -243,11 +243,11 @@ generate_predictors <- function(nlms){
       random <- nlm_random(ncol = 100, nrow = 100)
       predictors$random <- random
     }
-    else if(nlms[i] %in% c("random_cluster")){
-      random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
-                                          p = 0.4, ai = c(0.25, 0.25, 0.5))
-      predictors$random_cluster <- random_cluster
-    }
+    # else if(nlms[i] %in% c("random_cluster")){
+    #   random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
+    #                                       p = 0.4, ai = c(0.25, 0.25, 0.5))
+    #   predictors$random_cluster <- random_cluster
+    # }
     else if(nlms[i] %in% c("random_rectangular_cluster")){
       random_rectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
                                                                 nrow = 100,
@@ -400,7 +400,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                       "Planar gradient" = "planar_gradient",
                       "Polygonal landscapes" = "mosaictess",
                       "Random" = "random",
-                      "Random cluster" = "random_cluster",
+                      # "Random cluster" = "random_cluster",
                       "Random neighbourhood" = "neigh_raster",
                       "Random rectangular cluster" = "random_rectangular_cluster"),
           multiple = TRUE,
@@ -547,16 +547,6 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                      )
                  ),
           ),
-        # conditionalPanel(condition = "(input.sim_outcome && input.variable_selection != 'None')",
-        #                  fluidRow(
-        #                    column(12, 
-        #                           wellPanel(
-        #                             h4("Simulated outcome"),
-        #                             plotOutput(outputId = "outcome")
-        #                             ),
-        #                           ),
-        #                    ),
-        #                  ),
         conditionalPanel(condition = "input.sim_outcome",
                          fluidRow(
                            column(4, 
@@ -599,14 +589,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                    wellPanel(
                                                      h5("Prediction:"),
                                                      plotOutput(outputId = "random_10_fold_cv_prediction"),
-                                                   )
-                                  ),
+                                                     )
+                                                   ),
                                   conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.variable_selection != 'None')",
                                                    wellPanel(
                                                      h5("Difference:"),
                                                      plotOutput(outputId = "random_10_fold_cv_difference"),
-                                                   )
-                                  ),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('random_10_fold_cv'))",
+                                                   wellPanel(
+                                                     h5("Variable importance:"),
+                                                     textOutput(outputId = "random_10_fold_cv_varImp"),
+                                                     )
+                                                   ),
                                   conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('random_10_fold_cv'))",
                                                    wellPanel(
                                                      h5("AOA:"),
@@ -636,14 +632,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                    wellPanel(
                                                      h5("Prediction:"),
                                                      plotOutput(outputId = "loo_cv_prediction"),
-                                                   )
-                                  ),
+                                                     )
+                                                   ),
                                   conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.variable_selection != 'None')",
                                                    wellPanel(
                                                      h5("Difference:"),
                                                      plotOutput(outputId = "loo_cv_difference"),
-                                                   )
-                                  ),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('random_10_fold_cv'))",
+                                                   wellPanel(
+                                                     h5("Variable importance:"),
+                                                     plotOutput(outputId = "loo_cv_varImp"),
+                                                     )
+                                                   ),
                                   conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('loo_cv'))",
                                                    wellPanel(
                                                      h5("AOA:"),
@@ -673,14 +675,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                    wellPanel(
                                                      h5("Prediction:"),
                                                      plotOutput(outputId = "sb_cv_prediction"),
-                                                   )
-                                  ),
+                                                     )
+                                                   ),
                                   conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.variable_selection != 'None')",
                                                    wellPanel(
                                                      h5("Difference:"),
                                                      plotOutput(outputId = "sb_cv_difference"),
-                                                   )
-                                  ),
+                                                     )
+                                                   ),
+                                  conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('random_10_fold_cv'))",
+                                                   wellPanel(
+                                                     h5("Variable importance:"),
+                                                     plotOutput(outputId = "sb_cv_varImp"),
+                                                     )
+                                                   ),
                                   conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('sb_cv'))",
                                                    wellPanel(
                                                      h5("AOA:"),
@@ -716,6 +724,12 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                    wellPanel(
                                                      h5("Difference:"),
                                                      plotOutput(outputId = "nndm_loo_cv_difference"),
+                                                   )
+                                  ),
+                                  conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('random_10_fold_cv'))",
+                                                   wellPanel(
+                                                     h5("Variable importance:"),
+                                                     plotOutput(outputId = "nndm_loo_cv_varImp"),
                                                    )
                                   ),
                                   conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('nndm_loo_cv'))",
@@ -863,7 +877,17 @@ server <- function(input, output, session) {
     
     training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
     predictors_and_coords_as_sfc <- st_as_sf(predictors_and_coords, coords = c("coord1", "coord2"), remove = F)
-
+  
+    # # To plot variogram:
+    # training_data_sp_df <- training_data
+    # coordinates(training_data_sp_df)=~coord1+coord2
+    # empvar <- variogram(outcome~1, data = training_data_sp_df)
+    # fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
+    # outrange <- fitvar$range[2]
+    # print(outrange)
+    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    # 
+    # #For plotting distances:
     # View(training_data_as_sfc)
     # print(class(predictors_and_coords_as_sfc)[1])
     # distribution <- plot_geodist(training_data_as_sfc, predictors_and_coords_as_sfc,
@@ -871,7 +895,6 @@ server <- function(input, output, session) {
     #                              showPlot = FALSE)
     
     # distribution$plot+scale_x_log10(labels=round)+ggtitle("Randomly distributed reference data")
-    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
     
     
     
@@ -882,6 +905,7 @@ server <- function(input, output, session) {
     aoa <- list()
     cv_errors <- list() #Create list to store the cv results of the models
     true_errors <- list()
+    varImp <- list()
     # Create models and use the different cv_methods passed by the user
     if (input$set_seed){
       set.seed(input$seed)
@@ -905,7 +929,8 @@ server <- function(input, output, session) {
       if (input$algorithm == "rf") {
         cv_errors[[i]] <- models[[i]]$results[c("RMSE", "Rsquared", "MAE")]
         # print(models[[i]])
-        # print(varImp(models[[i]], scale = FALSE))
+        varImp[[i]] <- varImp(models[[i]], scale = FALSE)
+        # View(varImp[[i]]["importance"])
       }
       else if(input$algorithm == "svmRadial"){
         cv_errors[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
@@ -918,6 +943,7 @@ server <- function(input, output, session) {
     # print(aoa)
     # print(true_errors)
     # print(cv_errors)
+    # print(varImp)
     
     # Output the results on the right place:
     for (i in 1:length(input$cv_method)) {
@@ -929,6 +955,7 @@ server <- function(input, output, session) {
         output$random_10_fold_cv_difference <- renderPlot(show_landscape(dif[[j]]))
         output$random_10_fold_cv_aoa <- renderPlot(show_landscape(aoa[[j]]$AOA))
         output$random_10_fold_cv_di <- renderPlot(show_landscape(aoa[[j]]$DI))
+        output$random_10_fold_cv_varImp <- renderText(print(varImp[[j]]["importance"]))
       }
       if (names(models[i]) == "loo_cv"){
         k <- i
@@ -938,6 +965,7 @@ server <- function(input, output, session) {
         output$loo_cv_difference <- renderPlot(show_landscape(dif[[k]]))
         output$loo_cv_aoa <- renderPlot(show_landscape(aoa[[k]]$AOA))
         output$loo_cv_di <- renderPlot(show_landscape(aoa[[k]]$DI))
+        output$loo_cv_varImp <- renderPlot(varImp[[k]])
       }
       if (names(models[i]) == "sb_cv"){
         l <- i
@@ -947,6 +975,7 @@ server <- function(input, output, session) {
         output$sb_cv_difference <- renderPlot(show_landscape(dif[[l]]))
         output$sb_cv_aoa <- renderPlot(show_landscape(aoa[[l]]$AOA))
         output$sb_cv_di <- renderPlot(show_landscape(aoa[[l]]$DI))
+        output$sb_cv_varImp <- renderPlot(varImp[[l]])
       }
       if (names(models[i]) == "nndm_loo_cv"){
         m <- i
@@ -956,6 +985,7 @@ server <- function(input, output, session) {
         output$nndm_loo_cv_difference <- renderPlot(show_landscape(dif[[m]]))
         output$nndm_loo_cv_aoa <- renderPlot(show_landscape(aoa[[m]]$AOA))
         output$nndm_loo_cv_di <- renderPlot(show_landscape(aoa[[m]]$DI))
+        output$nndm_loo_cv_varImp <- renderPlot(varImp[[m]])
       }
     }
     # For the first passed cv-method calculate a prediction the difference between
