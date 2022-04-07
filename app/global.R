@@ -315,6 +315,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     model <- train(training_data[,names_predictors],
                    training_data$outcome,
                    tuneGrid=data.frame("mtry"=2),
+                   metric = "RMSE",
                    method = algorithm,
                    importance = TRUE,
                    trControl=ctrl)
@@ -323,7 +324,9 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     model <- CAST::ffs(predictors = training_data[,names_predictors],
                        response = training_data$outcome,
                        tuneGrid=data.frame("mtry"=2),
+                       metric = "RMSE",
                        method = algorithm,
+                       importance = TRUE,
                        trControl=ctrl)
   }
   if (variable_selection == "RFE" & algorithm == "rf"){
@@ -332,6 +335,8 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
                  method= algorithm,
                  tuneGrid=data.frame("mtry"=2),
                  metric = "RMSE",
+                 method = algorithm,
+                 importance = TRUE,
                  rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs))
   }
   return(model)

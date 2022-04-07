@@ -158,20 +158,35 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                               conditionalPanel(condition = "output.finished_prediction",
                                                br(),
                                                br(),
-                                               h4("Display options:"),
+                                               h4("Show the following for all selected CV methods:"),
+                                               p(),
+                                               checkboxInput(
+                                                 inputId = "show_prediction",
+                                                 label = "Prediction",
+                                                 value = FALSE
+                                               ),
+                                               checkboxInput(
+                                                 inputId = "show_difference",
+                                                 label = "Difference",
+                                                 value = FALSE
+                                               ),
+                                               checkboxInput(
+                                                 inputId = "show_selected_predictors",
+                                                 label = "Selected predictors",
+                                                 value = FALSE
+                                               ),
                                                checkboxInput(
                                                  inputId = "show_aoa",
-                                                 label = "Show AOA",
+                                                 label = "AOA",
                                                  value = FALSE
                                                ),
                                                checkboxInput(
                                                  inputId = "show_di",
-                                                 label = "Show DI",
+                                                 label = "DI",
                                                  value = FALSE
                                                ),
+                                               ),
                               ),
-                              
-                            ),
                             
                             mainPanel(
                               width = 9,
@@ -199,16 +214,16 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                           plotOutput(outputId = "outcome")
                                                         ),
                                                  ),
-                                                 column(4, conditionalPanel(condition = "output.finished_prediction && input.variable_selection == 'None'",
+                                                 column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
-                                                                              h4("Prediction"),
+                                                                              h4("Prediction (of first model)"),
                                                                               plotOutput(outputId = "prediction_of_first_model")
                                                                             )
                                                  )
                                                  ),
-                                                 column(4, conditionalPanel(condition = "output.finished_prediction && input.variable_selection == 'None'",
+                                                 column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
-                                                                              h4("Difference"),
+                                                                              h4("Difference (of first model)"),
                                                                               plotOutput(outputId = "dif_of_first_model")
                                                                             )
                                                  )
@@ -229,31 +244,31 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                            tableOutput(outputId = "random_10_fold_cv_cv_error"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_prediction)",
                                                                          wellPanel(
                                                                            h5("Prediction:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_prediction"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_difference)",
                                                                          wellPanel(
                                                                            h5("Difference:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_difference"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('random_10_fold_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_selected_predictors)",
                                                                          wellPanel(
-                                                                           h5("Variable importance:"),
-                                                                           textOutput(outputId = "random_10_fold_cv_varImp"),
+                                                                           h5("Selected predictors and their importance:"),
+                                                                           plotOutput(outputId = "random_10_fold_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('random_10_fold_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_aoa)",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('random_10_fold_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_di)",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_di"),
@@ -272,31 +287,31 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                            tableOutput(outputId = "loo_cv_cv_error"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_prediction)",
                                                                          wellPanel(
                                                                            h5("Prediction:"),
                                                                            plotOutput(outputId = "loo_cv_prediction"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_difference)",
                                                                          wellPanel(
                                                                            h5("Difference:"),
                                                                            plotOutput(outputId = "loo_cv_difference"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('loo_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_selected_predictors)",
                                                                          wellPanel(
-                                                                           h5("Variable importance:"),
+                                                                           h5("Selected predictors and their importance:"),
                                                                            plotOutput(outputId = "loo_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('loo_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_aoa)",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "loo_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('loo_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_di)",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "loo_cv_di"),
@@ -315,31 +330,31 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                            tableOutput(outputId = "sb_cv_cv_error"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_prediction)",
                                                                          wellPanel(
                                                                            h5("Prediction:"),
                                                                            plotOutput(outputId = "sb_cv_prediction"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_difference)",
                                                                          wellPanel(
                                                                            h5("Difference:"),
                                                                            plotOutput(outputId = "sb_cv_difference"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('sb_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_selected_predictors)",
                                                                          wellPanel(
-                                                                           h5("Variable importance:"),
+                                                                           h5("Selected predictors and their importance:"),
                                                                            plotOutput(outputId = "sb_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('sb_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_aoa)",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "sb_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('sb_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_di)",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "sb_cv_di"),
@@ -358,31 +373,31 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                            tableOutput(outputId = "nndm_loo_cv_cv_error"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_prediction)",
                                                                          wellPanel(
                                                                            h5("Prediction:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_prediction"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.variable_selection != 'None')",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_difference)",
                                                                          wellPanel(
                                                                            h5("Difference:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_difference"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.variable_selection != 'None' && output.cv_methods.includes('nndm_loo_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_selected_predictors)",
                                                                          wellPanel(
-                                                                           h5("Variable importance:"),
+                                                                           h5("Selected predictors and their importance:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_aoa && output.cv_methods.includes('nndm_loo_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_aoa)",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(input.show_di && output.cv_methods.includes('nndm_loo_cv'))",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_di)",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_di"),

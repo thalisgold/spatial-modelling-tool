@@ -62,7 +62,7 @@ server <- function(input, output, session) {
       )
     })
     
-    # simulation <- normalizeRaster(simulation)
+    simulation <- normalizeRaster(simulation)
     names(simulation) <- "outcome"
     return(simulation)
   })
@@ -89,6 +89,19 @@ server <- function(input, output, session) {
   })
   
   outputOptions(output, "clustered", suspendWhenHidden = FALSE) 
+  
+  observe({
+    if (input$variable_selection != "None"){
+      updateCheckboxInput(session, "show_prediction", value = TRUE)
+      updateCheckboxInput(session, "show_difference", value = TRUE)
+      updateCheckboxInput(session, "show_selected_predictors", value = TRUE)
+    }
+    else{
+      updateCheckboxInput(session, "show_prediction", value = FALSE)
+      updateCheckboxInput(session, "show_difference", value = FALSE)
+      updateCheckboxInput(session, "show_selected_predictors", value = FALSE)
+    }
+  })
   
   sampling_points <- reactive({
     req(input$n_sampling_points, input$dist_sampling_points)
@@ -199,41 +212,57 @@ server <- function(input, output, session) {
         j <- i
         output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4, width = "100%")
         output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
-        output$random_10_fold_cv_prediction <- renderPlot(show_landscape(predictions[[j]]))
+        output$random_10_fold_cv_prediction <- renderPlot({
+          predictions[[j]][1] <- 0
+          predictions[[j]][2] <- 1
+          show_landscape(predictions[[j]])})
         output$random_10_fold_cv_difference <- renderPlot(show_landscape(dif[[j]]))
         output$random_10_fold_cv_aoa <- renderPlot(show_landscape(aoa[[j]]$AOA))
         output$random_10_fold_cv_di <- renderPlot(show_landscape(aoa[[j]]$DI))
-        output$random_10_fold_cv_varImp <- renderText(print(varImp[[j]]["importance"]))
+        output$random_10_fold_cv_varImp <- renderPlot(plot(varImp[[j]]))
+        # output$random_10_fold_cv_varImp <- renderPlot(plot_ffs(models[[j]]))
       }
       if (names(models[i]) == "loo_cv"){
         k <- i
         output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
-        output$loo_cv_prediction <- renderPlot(show_landscape(predictions[[k]]))
+        output$loo_cv_prediction <- renderPlot({
+          predictions[[k]][1] <- 0
+          predictions[[k]][2] <- 1
+          show_landscape(predictions[[k]])})
         output$loo_cv_difference <- renderPlot(show_landscape(dif[[k]]))
         output$loo_cv_aoa <- renderPlot(show_landscape(aoa[[k]]$AOA))
         output$loo_cv_di <- renderPlot(show_landscape(aoa[[k]]$DI))
-        output$loo_cv_varImp <- renderPlot(varImp[[k]])
+        output$loo_cv_varImp <- renderPlot(plot(varImp[[k]]))
+        # output$loo_cv_varImp <- renderPlot(plot_ffs(models[[k]]))
       }
       if (names(models[i]) == "sb_cv"){
         l <- i
         output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
-        output$sb_cv_prediction <- renderPlot(show_landscape(predictions[[l]]))
+        output$sb_cv_prediction <- renderPlot({
+          predictions[[l]][1] <- 0
+          predictions[[l]][2] <- 1
+          show_landscape(predictions[[l]])})
         output$sb_cv_difference <- renderPlot(show_landscape(dif[[l]]))
         output$sb_cv_aoa <- renderPlot(show_landscape(aoa[[l]]$AOA))
         output$sb_cv_di <- renderPlot(show_landscape(aoa[[l]]$DI))
-        output$sb_cv_varImp <- renderPlot(varImp[[l]])
+        output$sb_cv_varImp <- renderPlot(plot(varImp[[l]]))
+        # output$sb_cv_varImp <- renderPlot(plot_ffs(models[[l]]))
       }
       if (names(models[i]) == "nndm_loo_cv"){
         m <- i
         output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
-        output$nndm_loo_cv_prediction <- renderPlot(show_landscape(predictions[[m]]))
+        output$nndm_loo_cv_prediction <- renderPlot({
+          predictions[[m]][1] <- 0
+          predictions[[m]][2] <- 1
+          show_landscape(predictions[[m]])})
         output$nndm_loo_cv_difference <- renderPlot(show_landscape(dif[[m]]))
         output$nndm_loo_cv_aoa <- renderPlot(show_landscape(aoa[[m]]$AOA))
         output$nndm_loo_cv_di <- renderPlot(show_landscape(aoa[[m]]$DI))
-        output$nndm_loo_cv_varImp <- renderPlot(varImp[[m]])
+        output$nndm_loo_cv_varImp <- renderPlot(plot(varImp[[m]]))
+        # output$nndm_loo_cv_varImp <- renderPlot(plot_ffs(models[[m]]))
       }
     }
     # For the first passed cv-method calculate a prediction the difference between
