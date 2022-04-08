@@ -229,14 +229,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
                                                                               h4("Prediction"),
-                                                                              plotOutput(outputId = "prediction_of_first_model")
+                                                                              plotOutput(outputId = "prediction")
                                                                             )
                                                  )
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
                                                                               h4("Difference"),
-                                                                              plotOutput(outputId = "dif_of_first_model")
+                                                                              plotOutput(outputId = "dif")
                                                                             )
                                                  )
                                                  ),

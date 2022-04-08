@@ -332,14 +332,14 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   }
   if (variable_selection == "RFE" & algorithm == "rf"){
     model <- rfe(training_data[,names_predictors],
-                 training_data$outcome,
-                 method= algorithm,
+                 factor(training_data$outcome),
                  tuneGrid=data.frame("mtry"=2),
                  metric = "RMSE",
                  method = algorithm,
                  importance = TRUE,
                  ntree = 100,
-                 rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs))
+                 # rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs)),
+                 rfeControl=rfeControl(method="cv", functions = rfFuncs))
   }
   return(model)
 }

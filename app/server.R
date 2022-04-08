@@ -265,15 +265,15 @@ server <- function(input, output, session) {
     # For the first passed cv-method calculate a prediction the difference between
     # the simulated outcome and the prediction
     
-    output$prediction_of_first_model <- renderPlot({
+    output$prediction <- renderPlot({
       # To rescale legend to values between 0 and 1 (same as simulated outcome):
-      predictions[[i]][1] <- 0
-      predictions[[i]][2] <- 1
-      show_landscape(predictions[[i]])
+      predictions[[1]][1] <- 0
+      predictions[[1]][2] <- 1
+      show_landscape(predictions[[1]])
     })
     
-    output$dif_of_first_model <- renderPlot({
-      show_landscape(dif[[i]])
+    output$dif <- renderPlot({
+      show_landscape(dif[[1]])
     })
     output$cv_methods <- reactive({
       return(names(models))
