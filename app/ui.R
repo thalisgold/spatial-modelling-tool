@@ -52,8 +52,20 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                               br(),
                               br(),
                               h4("Step 2: Simulation of the outcome"),
-                              # Select from which of the already generated predictors the result should be simulated.
-                              uiOutput("nlms_for_outcome"),
+                              selectInput(
+                                inputId = "nlms_for_outcome",
+                                label = "Simulate the outcome from following NLMs:",
+                                choices = c("distance_gradient",
+                                            "edge_gradient",
+                                            "fractional_brownian_motion",
+                                            "gaussian_random_field",
+                                            "planar_gradient",
+                                            "polygonal_landscapes",
+                                            "random",
+                                            "random_neighbourhood",
+                                            "random_rectangular_cluster"),
+                                multiple = TRUE, 
+                                selected = c("distance_gradient", "edge_gradient")),
                               textAreaInput(inputId = "expression", label = "Enter an expression that describes how the outcome is to be calculated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
                               checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
                               checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
@@ -216,14 +228,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
-                                                                              h4("Prediction (of first model)"),
+                                                                              h4("Prediction"),
                                                                               plotOutput(outputId = "prediction_of_first_model")
                                                                             )
                                                  )
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
-                                                                              h4("Difference (of first model)"),
+                                                                              h4("Difference"),
                                                                               plotOutput(outputId = "dif_of_first_model")
                                                                             )
                                                  )

@@ -12,7 +12,6 @@ library(sf)
 library(shinythemes)
 library(gstat)
 library(NNDM)
-library(fresh)
 
 # Load functions ---------------------------------------------------------------
 
@@ -318,6 +317,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
                    metric = "RMSE",
                    method = algorithm,
                    importance = TRUE,
+                   ntree = 100,
                    trControl=ctrl)
   }
   else if (variable_selection == "FFS" & algorithm == "rf"){
@@ -327,6 +327,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
                        metric = "RMSE",
                        method = algorithm,
                        importance = TRUE,
+                       ntree = 100,
                        trControl=ctrl)
   }
   if (variable_selection == "RFE" & algorithm == "rf"){
@@ -337,6 +338,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
                  metric = "RMSE",
                  method = algorithm,
                  importance = TRUE,
+                 ntree = 100,
                  rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs))
   }
   return(model)

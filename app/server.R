@@ -13,13 +13,10 @@ server <- function(input, output, session) {
     show_landscape(predictors())
   })
   
-  output$nlms_for_outcome <- renderUI({
-    selectInput("nlms_for_outcome", label = "Simulate the outcome from following NLMs:", choices = input$nlm, multiple = TRUE, selected = c("distance_gradient", "edge_gradient"))
-  })
+
   
   simulation <- eventReactive(input$sim_outcome, {
-    nlms <- subset(predictors(), input$nlms_for_outcome) #NLMs to simulate outcome
-    # print(nlayers(nlms_for_outcome))
+    nlms <- generate_predictors(input$nlms_for_outcome)
     simulation <- raster()
     if (input$set_seed){
       set.seed(input$seed)
