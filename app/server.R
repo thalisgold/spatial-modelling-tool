@@ -16,12 +16,15 @@ server <- function(input, output, session) {
 
   
   simulation <- eventReactive(input$sim_outcome, {
-    nlms <- generate_predictors(input$nlms_for_outcome)
-    simulation <- raster()
     if (input$set_seed){
       set.seed(input$seed)
     }
+    nlms <- generate_predictors(input$nlms_for_outcome)
+    simulation <- raster()
     if (input$expression == ""){
+      if (input$set_seed){
+        set.seed(input$seed)
+      }
       expression <- generate_random_function(nlms)
     }
     else {
@@ -175,7 +178,7 @@ server <- function(input, output, session) {
       predictions[[i]] <- predict(predictors, models[[i]])
       names(predictions[[i]]) <- "prediction"
       # Generate aoa and di
-      aoa[[i]] <- aoa(predictors, models[[i]])
+      # aoa[[i]] <- aoa(predictors, models[[i]])
       # Calculate true errors
       dif[[i]] <- simulation() - predictions[[i]]
       dif_as_numeric <- raster::extract(abs(dif[[i]]), point_grid)
@@ -184,18 +187,49 @@ server <- function(input, output, session) {
       MAE <- mean(abs(dif_as_numeric))
       true_error <- data.frame(RMSE, Rsquared, MAE)
       true_errors[[i]] <- true_error
-      if (input$algorithm == "rf") {
-        cv_errors[[i]] <- models[[i]]$results[c("RMSE", "Rsquared", "MAE")]
-        # print(models[[i]])
+      if (input$algorithm == "rf" && input$variable_selection != "RFE") {
+        # Calculate global cv errors
+        global_cv_errors <- global_validation(models[[i]])
+        RMSE <- global_cv_errors[1]
+        Rsquared <- global_cv_errors[2]
+        MAE <- global_cv_errors[3]
+        cv_error <- data.frame(RMSE, Rsquared, MAE)
+        cv_errors[[i]] <- cv_error
+        # Save importance of the variables
         varImp[[i]] <- varImp(models[[i]], scale = FALSE)
-        # View(varImp[[i]]["importance"])
+        View(models[[i]])
+        View(varImp[[i]])
+      }
+      else if (input$variable_selection == "RFE") {
+        number_selected_variables <- length(models[[i]]$optVariables)
+        print(models[[i]]$results)
+        cv_errors[[i]] <- models[[i]]$results[number_selected_variables, c("RMSE", "Rsquared", "MAE")]
+        View(models[[i]])
+        varImp.train <- varImp(models[[i]], scale = FALSE)
+        varImp[[i]] <- varImp.train
+        View(varImp[[i]])
+        # varImp[[i]] <- models[[i]]$optVariables
+        # test <- predictors(models[[i]]) 
+        # print(test)
+        varimp_data <- data.frame(feature = row.names(varImp(models[[i]])),
+                                  importance = varImp(models[[i]])[, 1])
+        output$test1 <- renderPlot({
+          ggplot(data = varimp_data, aes(x = reorder(feature, -importance), y = importance, fill = feature)) +
+          geom_bar(stat="identity") + labs(x = "Features", y = "Variable Importance") + 
+          geom_text(aes(label = round(importance, 2)), vjust=1.6, color="white", size=4) + 
+          theme_bw() + theme(legend.position = "none")
+        })
+        # renderPlot(ggplot(data = models[[i]], metric = "RMSE") + theme_bw())
+        output$test2 <- renderPlot(plot(models[[i]],type="o"))
+        print(models[[i]]$optVariables)
       }
       else if(input$algorithm == "svmRadial"){
         cv_errors[[i]] <- models[[i]]$results[c("C", "RMSE", "Rsquared", "MAE")]
       }
     }
     names(models) <- input$cv_method # Name the models like their cv method!
-    print(names(models))
+    print(models[[1]])
+    # print(names(models))
     # print(predictions)
     # print(dif)
     # print(aoa)

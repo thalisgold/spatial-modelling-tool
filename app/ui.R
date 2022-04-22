@@ -252,7 +252,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                          wellPanel(
                                                                            h5("True error:"),
                                                                            tableOutput(outputId = "random_10_fold_cv_true_error"),
-                                                                           h5("CV error:"),
+                                                                           h5("CV error (global):"),
                                                                            tableOutput(outputId = "random_10_fold_cv_cv_error"),
                                                                          )
                                                         ),
@@ -295,7 +295,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                          wellPanel(
                                                                            h5("True error:"),
                                                                            tableOutput(outputId = "loo_cv_true_error"),
-                                                                           h5("CV error:"),
+                                                                           h5("CV error (global):"),
                                                                            tableOutput(outputId = "loo_cv_cv_error"),
                                                                          )
                                                         ),
@@ -338,7 +338,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                          wellPanel(
                                                                            h5("True error:"),
                                                                            tableOutput(outputId = "sb_cv_true_error"),
-                                                                           h5("CV error:"),
+                                                                           h5("CV error (global):"),
                                                                            tableOutput(outputId = "sb_cv_cv_error"),
                                                                          )
                                                         ),
@@ -381,7 +381,7 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                                          wellPanel(
                                                                            h5("True error:"),
                                                                            tableOutput(outputId = "nndm_loo_cv_true_error"),
-                                                                           h5("CV error:"),
+                                                                           h5("CV error (global):"),
                                                                            tableOutput(outputId = "nndm_loo_cv_cv_error"),
                                                                          )
                                                         ),
