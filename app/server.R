@@ -69,9 +69,16 @@ server <- function(input, output, session) {
   observeEvent(input$sim_target_variable, {
     output$target_variable <- renderPlot({
       print("----------------Finished simulating target_variable-----------------")
-      return(show_landscape(target_variable()))
+      target_variables_with_coords <- stack(coord_stack, target_variable())
+      target_variable_surface <- as.data.frame(raster::extract(target_variables_with_coords, point_grid))
+      ggplot() +
+        geom_raster(aes(x = coord1, y = coord2, fill = target_variable), data = target_variable_surface) +
+        geom_sf(fill = "transparent", data = study_area) +
+        xlab("") + ylab("") +
+        scale_fill_viridis_c(name="", limits= c(0,1)) +
+        theme_light()
+      })
     })
-  })
   
   distInput <- reactive({
     switch(input$dist_sampling_points,
@@ -110,11 +117,13 @@ server <- function(input, output, session) {
   
   observe({
     if (input$variable_selection != "None"){
+      updateCheckboxInput(session, "show_aoa", value = TRUE)
       updateCheckboxInput(session, "show_prediction", value = TRUE)
       updateCheckboxInput(session, "show_difference", value = TRUE)
       updateCheckboxInput(session, "show_selected_predictors", value = TRUE)
     }
     else{
+      updateCheckboxInput(session, "show_aoa", value = TRUE)
       updateCheckboxInput(session, "show_prediction", value = FALSE)
       updateCheckboxInput(session, "show_difference", value = FALSE)
       updateCheckboxInput(session, "show_selected_predictors", value = FALSE)
@@ -162,6 +171,7 @@ server <- function(input, output, session) {
     true_errors <- list()
     cv_errors <- list()
     varImp <- list()
+    surface <- list()
     
     # Create models and use the different cv_methods passed by the user to estimate the error
     if (input$set_seed){
@@ -180,6 +190,7 @@ server <- function(input, output, session) {
       
       # Calculate true errors
       dif[[i]] <- target_variable() - predictions[[i]]
+      names(dif[[i]]) <- "differences"
       dif_as_numeric <- raster::extract(abs(dif[[i]]), point_grid)
       RMSE <- sqrt(mean((dif_as_numeric)^2))
       Rsquared <- (cor(as.data.frame(target_variable), as.data.frame(predictions[[i]]))^2)[1,1]
@@ -187,8 +198,13 @@ server <- function(input, output, session) {
       true_error <- data.frame(RMSE, Rsquared, MAE)
       true_errors[[i]] <- true_error
       
-      # Calculate global cv errors
+      result_with_coords <- stack(coord_stack, predictions[[i]], dif[[i]], aoa[[i]]$AOA)
+      surface[[i]] <- as.data.frame(raster::extract(result_with_coords, point_grid))
+      # print(head(surface[[i]]))
+      
+      
       if (input$variable_selection != "RFE") {
+        # Calculate global cv errors
         global_cv_errors <- global_validation(models[[i]])
         RMSE <- global_cv_errors[1]
         Rsquared <- global_cv_errors[2]
@@ -202,13 +218,16 @@ server <- function(input, output, session) {
         # View(varImp[[i]])
       }
       else if (input$variable_selection == "RFE") {
+        # Calculate cv errors
         number_selected_variables <- length(models[[i]]$optVariables)
         print(models[[i]]$results)
         cv_errors[[i]] <- models[[i]]$results[number_selected_variables, c("RMSE", "Rsquared", "MAE")]
-        View(models[[i]])
+        
+        # Save importance of the variables
+        # View(models[[i]])
         varImp.train <- varImp(models[[i]], scale = FALSE)
         varImp[[i]] <- varImp.train
-        View(varImp[[i]])
+        # View(varImp[[i]])
         # varImp[[i]] <- models[[i]]$optVariables
         # test <- predictors(models[[i]]) 
         # print(test)
@@ -226,7 +245,7 @@ server <- function(input, output, session) {
       }
     }
     names(models) <- input$cv_method # Name the models like their cv method!
-    print(models[[1]])
+    # print(models[[1]])
     # print(names(models))
     # print(predictions)
     # print(dif)
@@ -240,13 +259,31 @@ server <- function(input, output, session) {
       if (names(models[i]) == "random_10_fold_cv"){
         j <- i
         output$random_10_fold_cv_prediction <- renderPlot({
-          predictions[[j]][1] <- 0
-          predictions[[j]][2] <- 1
-          show_landscape(predictions[[j]])})
-        output$random_10_fold_cv_difference <- renderPlot(show_landscape(dif[[j]]))
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = prediction), data = surface[[j]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="", limits= c(0,1)) +
+            theme_light()
+          })
+        output$random_10_fold_cv_difference <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[j]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(option = "H", name="") +
+            theme_light()
+        })
         output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4, width = "100%")
         output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
-        output$random_10_fold_cv_aoa <- renderPlot(show_landscape(aoa[[j]]$AOA))
+        output$random_10_fold_cv_aoa <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            theme_light()
+        })
         output$random_10_fold_cv_di <- renderPlot(show_landscape(aoa[[j]]$DI))
         output$random_10_fold_cv_varImp <- renderPlot(plot(varImp[[j]]))
         # output$random_10_fold_cv_varImp <- renderPlot(plot_ffs(models[[j]]))
@@ -254,13 +291,31 @@ server <- function(input, output, session) {
       if (names(models[i]) == "loo_cv"){
         k <- i
         output$loo_cv_prediction <- renderPlot({
-          predictions[[k]][1] <- 0
-          predictions[[k]][2] <- 1
-          show_landscape(predictions[[k]])})
-        output$loo_cv_difference <- renderPlot(show_landscape(dif[[k]]))
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = prediction), data = surface[[k]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="", limits= c(0,1)) +
+            theme_light()
+        })
+        output$loo_cv_difference <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[k]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(option = "H", name="") +
+            theme_light()
+        })
         output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
-        output$loo_cv_aoa <- renderPlot(show_landscape(aoa[[k]]$AOA))
+        output$loo_cv_aoa <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            theme_light()
+        })
         output$loo_cv_di <- renderPlot(show_landscape(aoa[[k]]$DI))
         output$loo_cv_varImp <- renderPlot(plot(varImp[[k]]))
         # output$loo_cv_varImp <- renderPlot(plot_ffs(models[[k]]))
@@ -268,13 +323,31 @@ server <- function(input, output, session) {
       if (names(models[i]) == "sb_cv"){
         l <- i
         output$sb_cv_prediction <- renderPlot({
-          predictions[[l]][1] <- 0
-          predictions[[l]][2] <- 1
-          show_landscape(predictions[[l]])})
-        output$sb_cv_difference <- renderPlot(show_landscape(dif[[l]]))
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = prediction), data = surface[[l]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="", limits= c(0,1)) +
+            theme_light()
+        })
+        output$sb_cv_difference <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[l]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(option = "H", name="") +
+            theme_light()
+        })
         output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
-        output$sb_cv_aoa <- renderPlot(show_landscape(aoa[[l]]$AOA))
+        output$sb_cv_aoa <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            theme_light()
+        })
         output$sb_cv_di <- renderPlot(show_landscape(aoa[[l]]$DI))
         output$sb_cv_varImp <- renderPlot(plot(varImp[[l]]))
         # output$sb_cv_varImp <- renderPlot(plot_ffs(models[[l]]))
@@ -282,13 +355,31 @@ server <- function(input, output, session) {
       if (names(models[i]) == "nndm_loo_cv"){
         m <- i
         output$nndm_loo_cv_prediction <- renderPlot({
-          predictions[[m]][1] <- 0
-          predictions[[m]][2] <- 1
-          show_landscape(predictions[[m]])})
-        output$nndm_loo_cv_difference <- renderPlot(show_landscape(dif[[m]]))
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = prediction), data = surface[[m]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="", limits= c(0,1)) +
+            theme_light()
+        })
+        output$nndm_loo_cv_difference <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[m]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(option = "H", name="") +
+            theme_light()
+        })
         output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
-        output$nndm_loo_cv_aoa <- renderPlot(show_landscape(aoa[[m]]$AOA))
+        output$nndm_loo_cv_aoa <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            theme_light()
+        })
         output$nndm_loo_cv_di <- renderPlot(show_landscape(aoa[[m]]$DI))
         output$nndm_loo_cv_varImp <- renderPlot(plot(varImp[[m]]))
         # output$nndm_loo_cv_varImp <- renderPlot(plot_ffs(models[[m]]))
@@ -298,15 +389,23 @@ server <- function(input, output, session) {
     # the simulated outcome and the prediction
     
     output$prediction <- renderPlot({
-      # To rescale legend to values between 0 and 1 (same as simulated outcome):
-      predictions[[1]][1] <- 0
-      predictions[[1]][2] <- 1
-      show_landscape(predictions[[1]])
+      ggplot() +
+        geom_raster(aes(x = coord1, y = coord2, fill = prediction), data = surface[[1]]) +
+        geom_sf(fill = "transparent", data = study_area) +
+        xlab("") + ylab("") +
+        scale_fill_viridis_c(name="", limits= c(0,1)) +
+        theme_light()
     })
     
     output$dif <- renderPlot({
-      show_landscape(dif[[1]])
-    })
+      ggplot() +
+        geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[1]]) +
+        geom_sf(fill = "transparent", data = study_area) +
+        xlab("") + ylab("") +
+        scale_fill_viridis_c(option = "H", name="") +
+        theme_light()
+      })
+    
     output$cv_methods <- reactive({
       return(names(models))
     })

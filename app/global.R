@@ -276,13 +276,16 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   # Create train control depending on cv strategy
   if (cv_method == "random_10_fold_cv"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
+    rfeCtrl <- rfeControl(method="cv", number = 10, functions = rfFuncs)
   }
   else if(cv_method == "loo_cv"){
     ctrl <- trainControl(method="cv", number = length(training_data[[1]]), savePredictions = TRUE)
+    rfeCtrl <- rfeControl(method="cv", number = length(training_data[[1]]), functions = rfFuncs)
   }
   else if(cv_method == "sb_cv"){
     indices <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
     ctrl <- trainControl(method="cv", index = indices$index, savePredictions = TRUE)
+    rfeCtrl <- rfeControl(method="cv", index = indices$index, functions = rfFuncs)
   }
   else if(cv_method == "nndm_loo_cv"){
     training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
@@ -303,6 +306,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     # Plot NNDM functions
     # output$test2 <- renderPlot(plot(NNDM_indices))
     ctrl <- trainControl(method = "cv", savePredictions = T, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
+    rfeCtrl <- rfeControl(method = "cv", functions = rfFuncs, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
   }
   # Train model depending on variable selection and algorithm
   if (variable_selection == "None" & algorithm == "rf"){
@@ -343,8 +347,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
                  method = algorithm,
                  ntree = 100,
                  sizes = c(1:length(names_predictors)),
-                 # rfeControl=rfeControl(method="cv", index = indices$index, functions = caretFuncs)),
-                 rfeControl=rfeControl(method="cv", index = indices$index, functions = rfFuncs))
+                 rfeControl= rfeCtrl)
   }
   return(model)
 }
