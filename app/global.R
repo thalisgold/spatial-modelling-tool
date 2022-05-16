@@ -203,67 +203,62 @@ generate_sampling_points <- function(n_sampling_points, dist_sampling_points){
 }
 
 #' @author Thalis Goldschmidt
-#' Generation of predictors
+#' Generation of nlms
 #' @description 
-#' This function generates predictors from a list of passed neutral landscape models.
+#' This function generates nlms from a list of passed neutral landscape models.
 #' @param nlms List of strings. Contains all the names of the nlms to be generated.
-#' @return A stack of the generated nlms, i. e. of out predictors
+#' @return A stack of the generated nlms
 #' @examples
-#' generate_sampling_points(c("distance_gradient", "edge_gradient", "fbm_raster"))
-generate_predictors <- function(nlms){
-  predictors <- stack()
+#' generate_nlms(c("distance_gradient", "edge_gradient"))
+generate_nlms <- function(nlms){
+  temp <- stack()
   for (i in 1:length(nlms)) {
     if (nlms[i] %in% c("distance_gradient")){
       distance_gradient <- nlm_distancegradient(ncol = 100, nrow = 100,
                                                 origin = c(40, 40, 40, 40))
-      predictors$distance_gradient <- distance_gradient
+      temp$distance_gradient <- distance_gradient
     }
     else if(nlms[i] %in% c("edge_gradient")){
       edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 25)
-      predictors$edge_gradient <- edge_gradient
+      temp$edge_gradient <- edge_gradient
     }
     else if(nlms[i] %in% c("fractional_brownian_motion")){
       fractional_brownian_motion  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.4)
-      predictors$fractional_brownian_motion <- fractional_brownian_motion
+      temp$fractional_brownian_motion <- fractional_brownian_motion
     }
     else if(nlms[i] %in% c("gaussian_random_field")){
       gaussian_random_field <- nlm_gaussianfield(ncol = 100, nrow = 100,
                                           autocorr_range = 40,
                                           mag_var = 8,
                                           nug = 5)
-      predictors$gaussian_random_field <- gaussian_random_field
+      temp$gaussian_random_field <- gaussian_random_field
     }
     else if(nlms[i] %in% c("polygonal_landscapes")){
       polygonal_landscapes <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
-      predictors$polygonal_landscapes <- polygonal_landscapes
+      temp$polygonal_landscapes <- polygonal_landscapes
     }
     else if(nlms[i] %in% c("random_neighbourhood")){
       random_neighbourhood <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
                                 p_empty = 0.1, categories = 5, neighbourhood = 8)
-      predictors$random_neighbourhood <- random_neighbourhood
+      temp$random_neighbourhood <- random_neighbourhood
     }
     else if(nlms[i] %in% c("planar_gradient")){
       planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)
-      predictors$planar_gradient <- planar_gradient
+      temp$planar_gradient <- planar_gradient
     }
     else if(nlms[i] %in% c("random")){
       random <- nlm_random(ncol = 100, nrow = 100)
-      predictors$random <- random
+      temp$random <- random
     }
-    # else if(nlms[i] %in% c("random_cluster")){
-    #   random_cluster <- nlm_randomcluster(ncol = 100, nrow = 100,
-    #                                       p = 0.4, ai = c(0.25, 0.25, 0.5))
-    #   predictors$random_cluster <- random_cluster
-    # }
     else if(nlms[i] %in% c("random_rectangular_cluster")){
       random_rectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
                                                                  nrow = 100,
                                                                  minl = 5,
                                                                  maxl = 10)
-      predictors$random_rectangular_cluster <- random_rectangular_cluster
+      temp$random_rectangular_cluster <- random_rectangular_cluster
     }
   }
-  return(predictors)
+  return(temp)
 }
 
 #' @author Thalis Goldschmidt
@@ -295,7 +290,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
     training_data_sp_df <- training_data
     coordinates(training_data_sp_df)=~coord1+coord2
-    empvar <- variogram(outcome~1, data = training_data_sp_df)
+    empvar <- variogram(target_variable~1, data = training_data_sp_df)
     fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
     outrange <- fitvar$range[2]
     # Compute NNDM indices
@@ -310,10 +305,20 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     ctrl <- trainControl(method = "cv", savePredictions = T, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
   }
   # Train model depending on variable selection and algorithm
-  if (variable_selection == "None"){
+  if (variable_selection == "None" & algorithm == "rf"){
     model <- train(training_data[,names_predictors],
-                   training_data$outcome,
+                   training_data$target_variable,
                    tuneGrid=data.frame("mtry"=2),
+                   metric = "RMSE",
+                   method = algorithm,
+                   importance = TRUE,
+                   ntree = 100,
+                   trControl=ctrl)
+  }
+  else if (variable_selection == "None" & algorithm == "svmRadial"){
+    model <- train(training_data[,names_predictors],
+                   training_data$target_variable,
+                   tuneGrid=data.frame("sigma" = 0.5, "C" = 1),
                    metric = "RMSE",
                    method = algorithm,
                    importance = TRUE,
@@ -322,7 +327,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   }
   else if (variable_selection == "FFS" & algorithm == "rf"){
     model <- ffs(predictors = training_data[,names_predictors],
-                       response = training_data$outcome,
+                       response = training_data$target_variable,
                        tuneGrid=data.frame("mtry"=2),
                        metric = "RMSE",
                        method = algorithm,
@@ -332,7 +337,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   }
   if (variable_selection == "RFE" & algorithm == "rf"){
     model <- rfe(training_data[,names_predictors],
-                 training_data$outcome,
+                 training_data$target_variable,
                  # tuneGrid=data.frame("mtry"=2),
                  metric = "RMSE",
                  method = algorithm,

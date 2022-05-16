@@ -1,4 +1,4 @@
-ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("flatly"), 
+ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"), 
                  tabPanel("App",
                           sidebarLayout(
                             sidebarPanel(
@@ -23,11 +23,11 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                                )
                               ),
                               br(),
-                              h4("Step 1: Generation of the predictors"),
+                              h4("Step 1: Simulation of the predictors"),
                               
                               # Choose multiple NLMs to generate predictors.
                               selectInput(
-                                inputId = "nlm",
+                                inputId = "nlms_for_predictors",
                                 label = "Choose some NLMs as predictors:",
                                 choices = c("Distance gradient" = "distance_gradient",
                                             "Edge gradient" = "edge_gradient",
@@ -43,18 +43,18 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                 selected = c("distance_gradient", "edge_gradient", "fractional_brownian_motion")
                               ),
                               
-                              conditionalPanel(condition = "input.nlm.length >= 1",
+                              conditionalPanel(condition = "input.nlms_for_predictors.length >= 1",
                                                actionButton(
-                                                 inputId = "generate_predictors",
-                                                 label = "Generate selected predictors"
+                                                 inputId = "sim_predictors",
+                                                 label = "Simulate selected predictors"
                                                )
                               ),
                               br(),
                               br(),
-                              h4("Step 2: Simulation of the outcome"),
+                              h4("Step 2: Simulation of the target variable"),
                               selectInput(
-                                inputId = "nlms_for_outcome",
-                                label = "Simulate the outcome from following NLMs:",
+                                inputId = "nlms_for_target_variable",
+                                label = "Simulate the target variable from following NLMs:",
                                 choices = c("distance_gradient",
                                             "edge_gradient",
                                             "fractional_brownian_motion",
@@ -66,15 +66,15 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                             "random_rectangular_cluster"),
                                 multiple = TRUE, 
                                 selected = c("distance_gradient", "edge_gradient")),
-                              textAreaInput(inputId = "expression", label = "Enter an expression that describes how the outcome is to be calculated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
+                              textAreaInput(inputId = "expression", label = "Enter an expression that describes how the target variable is to be calculated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
                               checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
                               checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
                               
-                              # If more than 2 were chosen, it is possible to simulate the outcome.
-                              conditionalPanel(condition = "input.nlms_for_outcome.length >= 1",
+                              # If more than 2 were chosen, it is possible to simulate the target_variable.
+                              conditionalPanel(condition = "input.nlms_for_target_variable.length >= 1",
                                                actionButton(
-                                                 inputId = "sim_outcome",
-                                                 label = "Simulate outcome"
+                                                 inputId = "sim_target_variable",
+                                                 label = "Simulate target variable"
                                                )
                               ),
                               
@@ -203,14 +203,14 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                             mainPanel(
                               width = 9,
                               fluidRow(
-                                column(6, conditionalPanel(condition = "input.generate_predictors",
+                                column(6, conditionalPanel(condition = "input.sim_predictors",
                                                            wellPanel(
                                                              h4("Predictors"),
                                                              plotOutput(outputId = "predictors")
                                                            )
                                 )
                                 ),
-                                column(6, conditionalPanel(condition = "input.sim_outcome",
+                                column(6, conditionalPanel(condition = "input.sim_target_variable",
                                                            wellPanel(
                                                              h4("Sampling points"),
                                                              plotOutput(outputId = "sampling_points")
@@ -218,12 +218,12 @@ ui <- navbarPage(title = "Remote Sensing Modeling Tool", theme = shinytheme("fla
                                 )
                                 ),
                               ),
-                              conditionalPanel(condition = "input.sim_outcome",
+                              conditionalPanel(condition = "input.sim_target_variable",
                                                fluidRow(
                                                  column(4, 
                                                         wellPanel(
-                                                          h4("Simulated outcome"),
-                                                          plotOutput(outputId = "outcome")
+                                                          h4("Target variable"),
+                                                          plotOutput(outputId = "target_variable")
                                                         ),
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
