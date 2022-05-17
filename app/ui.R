@@ -190,14 +190,20 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                checkboxInput(
                                                  inputId = "show_aoa",
                                                  label = "AOA",
-                                                 value = FALSE
+                                                 value = TRUE
                                                ),
                                                checkboxInput(
                                                  inputId = "show_di",
                                                  label = "DI",
                                                  value = FALSE
                                                ),
+                                               checkboxInput(
+                                                 inputId = "show_distances",
+                                                 label = "Distances",
+                                                 value = FALSE
                                                ),
+                                               ),
+                            
                               ),
                             
                             mainPanel(
@@ -416,6 +422,12 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                          )
                                                         ),
                                                  ),
+                                               ),
+                                               conditionalPanel(condition = "input.show_distances",
+                                                                wellPanel(
+                                                                  h5("Distances:"),
+                                                                  plotOutput(outputId = "distances"),
+                                                                )
                                                ),
                               ),
                               plotOutput(outputId = "test1"),

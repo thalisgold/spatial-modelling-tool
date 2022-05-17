@@ -117,13 +117,11 @@ server <- function(input, output, session) {
   
   observe({
     if (input$variable_selection != "None"){
-      updateCheckboxInput(session, "show_aoa", value = TRUE)
       updateCheckboxInput(session, "show_prediction", value = TRUE)
       updateCheckboxInput(session, "show_difference", value = TRUE)
       updateCheckboxInput(session, "show_selected_predictors", value = TRUE)
     }
     else{
-      updateCheckboxInput(session, "show_aoa", value = TRUE)
       updateCheckboxInput(session, "show_prediction", value = FALSE)
       updateCheckboxInput(session, "show_difference", value = FALSE)
       updateCheckboxInput(session, "show_selected_predictors", value = FALSE)
@@ -135,32 +133,16 @@ server <- function(input, output, session) {
     predictors <- predictors()
     target_variable <- target_variable()
     sample_points <- sample_points()
+    sample_points_for_distances <- sample_points
     sample_points <- st_join(sample_points, spatial_blocks) # Assign a spatial block to each sample point
     training_data_stack <- stack(coord_stack, predictors, target_variable) # Create a stack of all predictors, the target_variable and the coordinates (to calculate nndm indices later on)
     training_data <- as.data.frame(extract(training_data_stack, sample_points, sp = TRUE)) # Extract the informations of the predictors and the target_variable on the positions of the sample points
     
-    # # For distances plot?
-    # predictors_df <- as.data.frame(stack(predictors, coord_stack))
-    # predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
-    # training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
-    # # To plot variogram:
-    # training_data_sp_df <- training_data
-    # coordinates(training_data_sp_df)=~coord1+coord2
-    # empvar <- variogram(outcome~1, data = training_data_sp_df)
-    # fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
-    # outrange <- fitvar$range[2]
-    # print(outrange)
-    # output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
-    # 
-    # #For plotting distances:
-    # View(training_data_as_sfc)
-    # print(class(predictors_and_coords_as_sfc)[1])
-    # distribution <- plot_geodist(training_data_as_sfc, predictors_and_coords_as_sfc,
-    #                              type = "feature",
-    #                              showPlot = FALSE)
-    
-    # distribution$plot+scale_x_log10(labels=round)+ggtitle("Randomly distributed reference data")
-    
+    # Plot distances between sample points and sample points and prediction points
+    st_crs(sample_points_for_distances) <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs"
+    predictors_for_distances <- study_area
+    st_crs(predictors_for_distances) <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs"
+    output$distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, type = "geo",showPlot = TRUE))
     
     
     # Create lists to store all necessary information for each cv method selected! 
