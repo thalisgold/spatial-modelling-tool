@@ -81,7 +81,7 @@ server <- function(input, output, session) {
     })
   
   distInput <- reactive({
-    switch(input$dist_sampling_points,
+    switch(input$dist_sample_points,
            "random",
            "regular",
            "clustered",
@@ -89,28 +89,28 @@ server <- function(input, output, session) {
   })
   
   output$clustered <- reactive({
-    if (input$dist_sampling_points == "clustered")
+    if (input$dist_sample_points == "clustered")
       return(TRUE)
   })
   
   outputOptions(output, "clustered", suspendWhenHidden = FALSE)
   
-  sampling_points <- reactive({
-    req(input$n_sampling_points, input$dist_sampling_points)
+  sample_points <- reactive({
+    req(input$n_sample_points, input$dist_sample_points)
     if (input$set_seed){
       set.seed(input$seed)
     }
-    if (input$dist_sampling_points != "clustered"){
-      sampling_points <- generate_sampling_points(input$n_sampling_points, input$dist_sampling_points)
+    if (input$dist_sample_points != "clustered"){
+      sample_points <- generate_sample_points(input$n_sample_points, input$dist_sample_points)
     }
     else{
-      sampling_points <- clustered_sample(study_area, input$n_parents, input$n_offsprings, input$radius)
+      sample_points <- clustered_sample(study_area, input$n_parents, input$n_offsprings, input$radius)
     }
   })
   
-  output$sampling_points <- renderPlot({
+  output$sample_points <- renderPlot({
     ggplot() +
-      geom_sf(data = sampling_points(), size = 1) +
+      geom_sf(data = sample_points(), size = 1) +
       geom_sf(data = study_area,  alpha = 0) +
       theme_light()
   })
@@ -134,10 +134,10 @@ server <- function(input, output, session) {
     print("--------------------Started generating prediction---------------------")
     predictors <- predictors()
     target_variable <- target_variable()
-    sampling_points <- sampling_points()
-    sampling_points <- st_join(sampling_points, spatial_blocks) # Assign a spatial block to each sampling point
+    sample_points <- sample_points()
+    sample_points <- st_join(sample_points, spatial_blocks) # Assign a spatial block to each sample point
     training_data_stack <- stack(coord_stack, predictors, target_variable) # Create a stack of all predictors, the target_variable and the coordinates (to calculate nndm indices later on)
-    training_data <- as.data.frame(extract(training_data_stack, sampling_points, sp = TRUE)) # Extract the informations of the predictors and the target_variable on the positions of the sampling points
+    training_data <- as.data.frame(extract(training_data_stack, sample_points, sp = TRUE)) # Extract the informations of the predictors and the target_variable on the positions of the sample points
     
     # # For distances plot?
     # predictors_df <- as.data.frame(stack(predictors, coord_stack))
@@ -198,7 +198,7 @@ server <- function(input, output, session) {
       true_error <- data.frame(RMSE, Rsquared, MAE)
       true_errors[[i]] <- true_error
       
-      result_with_coords <- stack(coord_stack, predictions[[i]], dif[[i]], aoa[[i]]$AOA)
+      result_with_coords <- stack(coord_stack, predictions[[i]], dif[[i]], aoa[[i]]$AOA, aoa[[i]]$DI)
       surface[[i]] <- as.data.frame(raster::extract(result_with_coords, point_grid))
       # print(head(surface[[i]]))
       
@@ -256,6 +256,8 @@ server <- function(input, output, session) {
     
     # Output the results on the right place:
     for (i in 1:length(input$cv_method)) {
+      
+      ################ RANDOM 10-FOLD CV ################
       if (names(models[i]) == "random_10_fold_cv"){
         j <- i
         output$random_10_fold_cv_prediction <- renderPlot({
@@ -274,20 +276,29 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(option = "H", name="") +
             theme_light()
         })
-        output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4, width = "100%")
-        output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
         output$random_10_fold_cv_aoa <- renderPlot({
           ggplot() +
             geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
+            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+        })
+        output$random_10_fold_cv_di <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[j]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$random_10_fold_cv_di <- renderPlot(show_landscape(aoa[[j]]$DI))
+        output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4, width = "100%")
+        output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
         output$random_10_fold_cv_varImp <- renderPlot(plot(varImp[[j]]))
         # output$random_10_fold_cv_varImp <- renderPlot(plot_ffs(models[[j]]))
       }
+      
+      ################### LOO CV ###################
       if (names(models[i]) == "loo_cv"){
         k <- i
         output$loo_cv_prediction <- renderPlot({
@@ -306,20 +317,28 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(option = "H", name="") +
             theme_light()
         })
-        output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4, width = "100%")
-        output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_aoa <- renderPlot({
           ggplot() +
             geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
+            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+        })
+        output$loo_cv_di <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[k]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$loo_cv_di <- renderPlot(show_landscape(aoa[[k]]$DI))
+        output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4, width = "100%")
+        output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_varImp <- renderPlot(plot(varImp[[k]]))
         # output$loo_cv_varImp <- renderPlot(plot_ffs(models[[k]]))
       }
+      ################ SPATIAL BLOCK CV ################
       if (names(models[i]) == "sb_cv"){
         l <- i
         output$sb_cv_prediction <- renderPlot({
@@ -338,20 +357,28 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(option = "H", name="") +
             theme_light()
         })
-        output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4, width = "100%")
-        output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_aoa <- renderPlot({
           ggplot() +
             geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
+            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+        })
+        output$sb_cv_di <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[l]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$sb_cv_di <- renderPlot(show_landscape(aoa[[l]]$DI))
+        output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4, width = "100%")
+        output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_varImp <- renderPlot(plot(varImp[[l]]))
         # output$sb_cv_varImp <- renderPlot(plot_ffs(models[[l]]))
       }
+      ################ NNDM LOO CV ################
       if (names(models[i]) == "nndm_loo_cv"){
         m <- i
         output$nndm_loo_cv_prediction <- renderPlot({
@@ -370,24 +397,30 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(option = "H", name="") +
             theme_light()
         })
-        output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4, width = "100%")
-        output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_aoa <- renderPlot({
           ggplot() +
             geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("0","1"), guide = guide_legend(reverse=TRUE)) +
+            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
+            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+        })
+        output$nndm_loo_cv_di <- renderPlot({
+          ggplot() +
+            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[m]]) +
+            geom_sf(fill = "transparent", data = study_area) +
+            xlab("") + ylab("") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$nndm_loo_cv_di <- renderPlot(show_landscape(aoa[[m]]$DI))
+        output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4, width = "100%")
+        output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_varImp <- renderPlot(plot(varImp[[m]]))
         # output$nndm_loo_cv_varImp <- renderPlot(plot_ffs(models[[m]]))
       }
     }
-    # For the first passed cv-method calculate a prediction the difference between
-    # the simulated outcome and the prediction
     
+    # For the first passed cv-method calculate a prediction and the difference between the simulated outcome and the prediction
     output$prediction <- renderPlot({
       ggplot() +
         geom_raster(aes(x = coord1, y = coord2, fill = prediction), data = surface[[1]]) +

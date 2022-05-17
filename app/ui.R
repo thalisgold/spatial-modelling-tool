@@ -80,11 +80,11 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                               
                               br(),
                               br(),
-                              # Select the number and distribution of the sampling points.
-                              h4("Step 3: Selection of parameters for the sampling points"),
+                              # Select the number and distribution of the sample points.
+                              h4("Step 3: Simulation of the sample points"),
                               selectInput(
-                                inputId = "dist_sampling_points",
-                                label = "Distribution of sampling points:",
+                                inputId = "dist_sample_points",
+                                label = "Distribution of sample points:",
                                 choices = c("Clustered" = "clustered",
                                             "Non-uniform" = "nonunif",
                                             "Random" = "random",
@@ -94,8 +94,8 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                               
                               conditionalPanel(condition = "!output.clustered",
                                                numericInput(
-                                                 inputId = "n_sampling_points",
-                                                 label = "Number of sampling points:",
+                                                 inputId = "n_sample_points",
+                                                 label = "Number of sample points:",
                                                  value = 50,
                                                  min = 50,
                                                  max = 250,
@@ -212,8 +212,8 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                 ),
                                 column(6, conditionalPanel(condition = "input.sim_target_variable",
                                                            wellPanel(
-                                                             h4("Sampling points"),
-                                                             plotOutput(outputId = "sampling_points")
+                                                             h4("Sample points"),
+                                                             plotOutput(outputId = "sample_points")
                                                            )
                                 )
                                 ),

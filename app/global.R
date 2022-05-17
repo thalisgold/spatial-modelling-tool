@@ -182,24 +182,24 @@ generate_random_function <- function(raster_stack) {
 }
 
 #' @author Thalis Goldschmidt
-#' Generation of sampling points
+#' Simulation of sample points
 #' @description 
-#' This function generates sampling points depending on the chosen distribution and number. 
-#' @param n_sampling_points Integer. Number of sampling points to be generated.
-#' @param dist_sampling_points String. Name of the selected distribution.
+#' This function generates sample points depending on the chosen distribution and number. 
+#' @param n_sample_points Integer. Number of sample points to be generated.
+#' @param dist_sample_points String. Name of the selected distribution.
 #' @return A simple feature collection with n features of the type "POINT" and their geometry.
 #' @examples
-#' generate_sampling_points(50, "random")
-generate_sampling_points <- function(n_sampling_points, dist_sampling_points){
-  if(dist_sampling_points %in% c("nonunif")){
+#' generate_sample_points(50, "random")
+generate_sample_points <- function(n_sample_points, dist_sample_points){
+  if(dist_sample_points %in% c("nonunif")){
     nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
-    sampling_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_sampling_points, type = "random")
-    sampling_points <- st_sf(geom=sampling_points)
+    sample_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_sample_points, type = "random")
+    sample_points <- st_sf(geom=sample_points)
   }else{
-    sampling_points <- st_sample(study_area, n_sampling_points, type = dist_sampling_points)
-    sampling_points <- st_sf(geom=sampling_points)
+    sample_points <- st_sample(study_area, n_sample_points, type = dist_sample_points)
+    sample_points <- st_sf(geom=sample_points)
   }
-  return(sampling_points)
+  return(sample_points)
 }
 
 #' @author Thalis Goldschmidt
