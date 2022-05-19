@@ -12,6 +12,8 @@ library(sf)
 library(shinythemes)
 library(gstat)
 library(NNDM)
+library(shinycssloaders)
+library(shinybusy)
 
 # Load functions ---------------------------------------------------------------
 
@@ -353,8 +355,6 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
 }
 
 # Load data --------------------------------------------------------------------
-print("-----------------------------App started------------------------------")
-
 # Create grids
 dimgrid <- 100
 rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)

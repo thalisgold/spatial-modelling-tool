@@ -1,7 +1,8 @@
-ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"), 
+ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                  tabPanel("App",
                           sidebarLayout(
                             sidebarPanel(
+                              add_busy_spinner(spin = "circle",timeout = 800, color = "#0dc5c1", position = "bottom-right"),
                               width = 3,
                               # It is possible to plant a seed in order to always achieve the same results
                               # and thus comparability.
@@ -43,7 +44,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                 selected = c("distance_gradient", "edge_gradient", "fractional_brownian_motion")
                               ),
                               
-                              conditionalPanel(condition = "input.nlms_for_predictors.length >= 1",
+                              conditionalPanel(condition = "input.nlms_for_predictors.length >= 2",
                                                actionButton(
                                                  inputId = "sim_predictors",
                                                  label = "Simulate selected predictors"
@@ -69,7 +70,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                               textAreaInput(inputId = "expression", label = "Enter an expression that describes how the target variable is to be calculated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
                               checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
                               checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
-                              
+              
                               # If more than 2 were chosen, it is possible to simulate the target_variable.
                               conditionalPanel(condition = "input.nlms_for_target_variable.length >= 1",
                                                actionButton(
@@ -212,7 +213,9 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                 column(6, conditionalPanel(condition = "input.sim_predictors",
                                                            wellPanel(
                                                              h4("Predictors"),
-                                                             plotOutput(outputId = "predictors")
+                                                             withSpinner(
+                                                             plotOutput(outputId = "predictors"), type = 4, color = "#0dc5c1"
+                                                             )
                                                            )
                                 )
                                 ),
@@ -229,20 +232,22 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  column(4, 
                                                         wellPanel(
                                                           h4("Target variable"),
-                                                          plotOutput(outputId = "target_variable")
+                                                          withSpinner(
+                                                          plotOutput(outputId = "target_variable"), type = 4, color = "#0dc5c1"
+                                                          )
                                                         ),
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
                                                                               h4("Prediction"),
-                                                                              plotOutput(outputId = "prediction")
+                                                                              plotOutput(outputId = "prediction"),
                                                                             )
                                                  )
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
                                                                               h4("Difference"),
-                                                                              plotOutput(outputId = "dif")
+                                                                              plotOutput(outputId = "dif"),
                                                                             )
                                                  )
                                                  ),
@@ -280,13 +285,13 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "random_10_fold_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_aoa)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_aoa && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_di)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_di && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_di"),
@@ -323,13 +328,13 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "loo_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_aoa)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_aoa && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "loo_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_di)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_di && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "loo_cv_di"),
@@ -366,13 +371,13 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "sb_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_aoa)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_aoa && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "sb_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_di)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_di && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "sb_cv_di"),
@@ -409,13 +414,13 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "nndm_loo_cv_varImp"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_aoa)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_aoa && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("AOA:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_aoa"),
                                                                          )
                                                         ),
-                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_di)",
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_di && input.variable_selection != 'RFE')",
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_di"),

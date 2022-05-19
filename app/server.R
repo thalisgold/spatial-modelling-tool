@@ -5,8 +5,6 @@ server <- function(input, output, session) {
     if (input$set_seed){
       set.seed(input$seed)
     }
-    
-    print("--------------------Finished generating predictors--------------------")
     return (generate_nlms(input$nlms_for_predictors))
   })
   
@@ -29,7 +27,6 @@ server <- function(input, output, session) {
     else {
       expression <- input$expression
     }
-    # print(expression)
     target_variable <- eval(parse(text=expression))
     if (input$r_noise == TRUE){
       r_noise <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
@@ -68,7 +65,6 @@ server <- function(input, output, session) {
   
   observeEvent(input$sim_target_variable, {
     output$target_variable <- renderPlot({
-      print("----------------Finished simulating target_variable-----------------")
       target_variables_with_coords <- stack(coord_stack, target_variable())
       target_variable_surface <- as.data.frame(raster::extract(target_variables_with_coords, point_grid))
       ggplot() +
@@ -167,8 +163,10 @@ server <- function(input, output, session) {
       predictions[[i]] <- predict(predictors, models[[i]])
       names(predictions[[i]]) <- "prediction"
       
-      # Generate aoa and di
-      aoa[[i]] <- aoa(predictors, models[[i]])
+      # Generate AOA
+      if (input$variable_selection != "RFE") {
+        aoa[[i]] <- aoa(predictors, models[[i]])
+      }
       
       # Calculate true errors
       dif[[i]] <- target_variable() - predictions[[i]]
@@ -180,7 +178,13 @@ server <- function(input, output, session) {
       true_error <- data.frame(RMSE, Rsquared, MAE)
       true_errors[[i]] <- true_error
       
-      result_with_coords <- stack(coord_stack, predictions[[i]], dif[[i]], aoa[[i]]$AOA, aoa[[i]]$DI)
+      if (input$variable_selection != "RFE") {
+        result_with_coords <- stack(coord_stack, predictions[[i]], dif[[i]], aoa[[i]]$AOA, aoa[[i]]$DI)
+      }
+      else if (input$variable_selection == "RFE") {
+        result_with_coords <- stack(coord_stack, predictions[[i]], dif[[i]])
+      }
+      
       surface[[i]] <- as.data.frame(raster::extract(result_with_coords, point_grid))
       # print(head(surface[[i]]))
       
@@ -194,36 +198,25 @@ server <- function(input, output, session) {
         cv_error <- data.frame(RMSE, Rsquared, MAE)
         cv_errors[[i]] <- cv_error
         
-        # Save importance of the variables
-        varImp[[i]] <- varImp(models[[i]], scale = FALSE)
-        # View(models[[i]])
-        # View(varImp[[i]])
+        # Save importance of the variables (we save it in a dataframe, so it can be visualized in the same way as for RFE)
+        # Otherwise RFE variable importance couldnt be plotted!
+        importance <- varImp(models[[i]], scale = FALSE)[["importance"]]
+        features <- rownames(importance)
+        importance <- importance$Overall
+        varImpDF <- data.frame(Features = features, Importance = importance)
+        varImp[[i]] <- varImpDF
+        
       }
       else if (input$variable_selection == "RFE") {
         # Calculate cv errors
         number_selected_variables <- length(models[[i]]$optVariables)
-        print(models[[i]]$results)
         cv_errors[[i]] <- models[[i]]$results[number_selected_variables, c("RMSE", "Rsquared", "MAE")]
         
         # Save importance of the variables
-        # View(models[[i]])
-        varImp.train <- varImp(models[[i]], scale = FALSE)
-        varImp[[i]] <- varImp.train
-        # View(varImp[[i]])
-        # varImp[[i]] <- models[[i]]$optVariables
-        # test <- predictors(models[[i]]) 
-        # print(test)
-        varimp_data <- data.frame(feature = row.names(varImp(models[[i]])),
-                                  importance = varImp(models[[i]])[, 1])
-        output$test1 <- renderPlot({
-          ggplot(data = varimp_data, aes(x = reorder(feature, -importance), y = importance, fill = feature)) +
-          geom_bar(stat="identity") + labs(x = "Features", y = "Variable Importance") + 
-          geom_text(aes(label = round(importance, 2)), vjust=1.6, color="white", size=4) + 
-          theme_bw() + theme(legend.position = "none")
-        })
-        # renderPlot(ggplot(data = models[[i]], metric = "RMSE") + theme_bw())
-        output$test2 <- renderPlot(plot(models[[i]],type="o"))
-        print(models[[i]]$optVariables)
+        features <- models[[i]][["optVariables"]]
+        importance <- varImp(models[[i]], scale = FALSE)[,1]
+        varImpDF <- data.frame(Features = features, Importance = importance)
+        varImp[[i]] <- varImpDF
       }
     }
     names(models) <- input$cv_method # Name the models like their cv method!
@@ -276,9 +269,12 @@ server <- function(input, output, session) {
         })
         output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4, width = "100%")
         output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
-        output$random_10_fold_cv_varImp <- renderPlot(plot(varImp[[j]]))
-        # output$random_10_fold_cv_varImp <- renderPlot(plot_ffs(models[[j]]))
-      }
+        output$random_10_fold_cv_varImp <- renderPlot({
+          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+            geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
+            theme_light()
+        })
+        }
       
       ################### LOO CV ###################
       if (names(models[i]) == "loo_cv"){
@@ -317,8 +313,11 @@ server <- function(input, output, session) {
         })
         output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
-        output$loo_cv_varImp <- renderPlot(plot(varImp[[k]]))
-        # output$loo_cv_varImp <- renderPlot(plot_ffs(models[[k]]))
+        output$loo_cv_varImp <- renderPlot({
+          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+            geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
+            theme_light()
+        })
       }
       ################ SPATIAL BLOCK CV ################
       if (names(models[i]) == "sb_cv"){
@@ -357,8 +356,11 @@ server <- function(input, output, session) {
         })
         output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
-        output$sb_cv_varImp <- renderPlot(plot(varImp[[l]]))
-        # output$sb_cv_varImp <- renderPlot(plot_ffs(models[[l]]))
+        output$sb_cv_varImp <- renderPlot({
+          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+            geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
+            theme_light()
+        })
       }
       ################ NNDM LOO CV ################
       if (names(models[i]) == "nndm_loo_cv"){
@@ -397,8 +399,11 @@ server <- function(input, output, session) {
         })
         output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
-        output$nndm_loo_cv_varImp <- renderPlot(plot(varImp[[m]]))
-        # output$nndm_loo_cv_varImp <- renderPlot(plot_ffs(models[[m]]))
+        output$nndm_loo_cv_varImp <- renderPlot({
+          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+            geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
+            theme_light()
+        })
       }
     }
     
