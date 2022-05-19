@@ -180,7 +180,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                ),
                                                checkboxInput(
                                                  inputId = "show_difference",
-                                                 label = "Difference",
+                                                 label = "Absolute difference",
                                                  value = FALSE
                                                ),
                                                checkboxInput(
@@ -246,7 +246,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  ),
                                                  column(4, conditionalPanel(condition = "output.finished_prediction && !input.show_prediction",
                                                                             wellPanel(
-                                                                              h4("Difference"),
+                                                                              h4("Absolute difference"),
                                                                               plotOutput(outputId = "dif"),
                                                                             )
                                                  )
@@ -275,7 +275,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_difference)",
                                                                          wellPanel(
-                                                                           h5("Difference:"),
+                                                                           h5("Absolute Difference:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_difference"),
                                                                          )
                                                         ),
@@ -318,7 +318,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_difference)",
                                                                          wellPanel(
-                                                                           h5("Difference:"),
+                                                                           h5("Absolute difference:"),
                                                                            plotOutput(outputId = "loo_cv_difference"),
                                                                          )
                                                         ),
@@ -361,7 +361,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_difference)",
                                                                          wellPanel(
-                                                                           h5("Difference:"),
+                                                                           h5("Absolute difference:"),
                                                                            plotOutput(outputId = "sb_cv_difference"),
                                                                          )
                                                         ),
@@ -404,7 +404,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_difference)",
                                                                          wellPanel(
-                                                                           h5("Difference:"),
+                                                                           h5("Absolute difference:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_difference"),
                                                                          )
                                                         ),

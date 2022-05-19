@@ -169,9 +169,9 @@ server <- function(input, output, session) {
       }
       
       # Calculate true errors
-      dif[[i]] <- target_variable() - predictions[[i]]
+      dif[[i]] <- abs(target_variable() - predictions[[i]])
       names(dif[[i]]) <- "differences"
-      dif_as_numeric <- raster::extract(abs(dif[[i]]), point_grid)
+      dif_as_numeric <- raster::extract(dif[[i]], point_grid)
       RMSE <- sqrt(mean((dif_as_numeric)^2))
       Rsquared <- (cor(as.data.frame(target_variable), as.data.frame(predictions[[i]]))^2)[1,1]
       MAE <- mean(abs(dif_as_numeric))
@@ -248,7 +248,7 @@ server <- function(input, output, session) {
             geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[j]]) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
-            scale_fill_viridis_c(option = "H", name="") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
         output$random_10_fold_cv_aoa <- renderPlot({
@@ -292,7 +292,7 @@ server <- function(input, output, session) {
             geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[k]]) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
-            scale_fill_viridis_c(option = "H", name="") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
         output$loo_cv_aoa <- renderPlot({
@@ -335,7 +335,7 @@ server <- function(input, output, session) {
             geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[l]]) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
-            scale_fill_viridis_c(option = "H", name="") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
         output$sb_cv_aoa <- renderPlot({
@@ -378,7 +378,7 @@ server <- function(input, output, session) {
             geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[m]]) +
             geom_sf(fill = "transparent", data = study_area) +
             xlab("") + ylab("") +
-            scale_fill_viridis_c(option = "H", name="") +
+            scale_fill_viridis_c(name="") +
             theme_light()
         })
         output$nndm_loo_cv_aoa <- renderPlot({
@@ -422,7 +422,7 @@ server <- function(input, output, session) {
         geom_raster(aes(x = coord1, y = coord2, fill = differences), data = surface[[1]]) +
         geom_sf(fill = "transparent", data = study_area) +
         xlab("") + ylab("") +
-        scale_fill_viridis_c(option = "H", name="") +
+        scale_fill_viridis_c(name="") +
         theme_light()
       })
     
