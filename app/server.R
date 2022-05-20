@@ -186,8 +186,6 @@ server <- function(input, output, session) {
       }
       
       surface[[i]] <- as.data.frame(raster::extract(result_with_coords, point_grid))
-      # print(head(surface[[i]]))
-      
       
       if (input$variable_selection != "RFE") {
         # Calculate global cv errors
@@ -205,29 +203,24 @@ server <- function(input, output, session) {
         importance <- importance$Overall
         varImpDF <- data.frame(Features = features, Importance = importance)
         varImp[[i]] <- varImpDF
-        
       }
+      
       else if (input$variable_selection == "RFE") {
         # Calculate cv errors
         number_selected_variables <- length(models[[i]]$optVariables)
         cv_errors[[i]] <- models[[i]]$results[number_selected_variables, c("RMSE", "Rsquared", "MAE")]
         
         # Save importance of the variables
-        features <- models[[i]][["optVariables"]]
+        opt_variables <- models[[i]][["optVariables"]]
+        true <- varImp(models[[i]], scale = FALSE)
+        features <- rownames(true)
         importance <- varImp(models[[i]], scale = FALSE)[,1]
         varImpDF <- data.frame(Features = features, Importance = importance)
+        varImpDF <- varImpDF[varImpDF$Features %in% opt_variables,]
         varImp[[i]] <- varImpDF
       }
     }
     names(models) <- input$cv_method # Name the models like their cv method!
-    # print(models[[1]])
-    # print(names(models))
-    # print(predictions)
-    # print(dif)
-    # print(aoa)
-    # print(true_errors)
-    # print(cv_errors)
-    # print(varImp)
     
     # Output the results on the right place:
     for (i in 1:length(input$cv_method)) {
@@ -251,22 +244,24 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$random_10_fold_cv_aoa <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-        })
-        output$random_10_fold_cv_di <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[j]]) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            scale_fill_viridis_c(name="") +
-            theme_light()
-        })
+        if (input$variable_selection != "RFE") {
+          output$random_10_fold_cv_aoa <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
+              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+          })
+          output$random_10_fold_cv_di <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[j]]) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              scale_fill_viridis_c(name="") +
+              theme_light()
+          })
+        }
         if (input$variable_selection == "None") {
           output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
         }
@@ -275,7 +270,8 @@ server <- function(input, output, session) {
         }
         output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
         output$random_10_fold_cv_varImp <- renderPlot({
-          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+          ggplot(data=varImp[[j]], aes(x=Importance, y= reorder(Features, Importance))) +
+            ylab("Features") +
             geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
             theme_light()
         })
@@ -300,22 +296,24 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$loo_cv_aoa <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-        })
-        output$loo_cv_di <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[k]]) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            scale_fill_viridis_c(name="") +
-            theme_light()
-        })
+        if (input$variable_selection != "RFE") {
+          output$loo_cv_aoa <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
+              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+          })
+          output$loo_cv_di <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[k]]) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              scale_fill_viridis_c(name="") +
+              theme_light()
+          })
+        }
         if (input$variable_selection == "None") {
           output$loo_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
         }
@@ -324,7 +322,8 @@ server <- function(input, output, session) {
         }
         output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_varImp <- renderPlot({
-          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+          ggplot(data=varImp[[k]], aes(x=Importance, y= reorder(Features, Importance))) +
+            ylab("Predictors") +
             geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
             theme_light()
         })
@@ -348,22 +347,24 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$sb_cv_aoa <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-        })
-        output$sb_cv_di <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[l]]) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            scale_fill_viridis_c(name="") +
-            theme_light()
-        })
+        if (input$variable_selection != "RFE") {
+          output$sb_cv_aoa <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
+              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+          })
+          output$sb_cv_di <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[l]]) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              scale_fill_viridis_c(name="") +
+              theme_light()
+          })
+        }
         if (input$variable_selection == "None") {
           output$sb_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
         }
@@ -372,7 +373,8 @@ server <- function(input, output, session) {
         }
         output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_varImp <- renderPlot({
-          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+          ggplot(data=varImp[[l]], aes(x=Importance, y= reorder(Features, Importance))) +
+            ylab("Precitors") +
             geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
             theme_light()
         })
@@ -396,22 +398,24 @@ server <- function(input, output, session) {
             scale_fill_viridis_c(name="") +
             theme_light()
         })
-        output$nndm_loo_cv_aoa <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
-            scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-        })
-        output$nndm_loo_cv_di <- renderPlot({
-          ggplot() +
-            geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[m]]) +
-            geom_sf(fill = "transparent", data = study_area) +
-            xlab("") + ylab("") +
-            scale_fill_viridis_c(name="") +
-            theme_light()
-        })
+        if (input$variable_selection != "RFE") {
+          output$nndm_loo_cv_aoa <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
+              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+          })
+          output$nndm_loo_cv_di <- renderPlot({
+            ggplot() +
+              geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[m]]) +
+              geom_sf(fill = "transparent", data = study_area) +
+              xlab("") + ylab("") +
+              scale_fill_viridis_c(name="") +
+              theme_light()
+          })
+        }
         if (input$variable_selection == "None") {
           output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
         }
@@ -420,7 +424,8 @@ server <- function(input, output, session) {
         }
         output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_varImp <- renderPlot({
-          ggplot(data=varImp[[j]], aes(x=Importance, y=Features)) +
+          ggplot(data=varImp[[m]], aes(x=Importance, y= reorder(Features, Importance))) +
+            ylab("Predictors") +
             geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
             theme_light()
         })
