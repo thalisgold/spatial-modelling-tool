@@ -138,7 +138,30 @@ server <- function(input, output, session) {
     st_crs(sample_points_for_distances) <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs"
     predictors_for_distances <- study_area
     st_crs(predictors_for_distances) <- "+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs"
-    output$distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, type = "geo",showPlot = TRUE))
+    
+    # Create cv folds to compute distances
+    random_10_fold_cv_folds <- createFolds(training_data, k = 10)
+    loo_cv_folds <- createFolds(training_data, k = 50)
+    sb_cv_folds <- CreateSpacetimeFolds(training_data,spacevar = "ID",k=length(unique(training_data$ID)))
+    
+    training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F) 
+    predictors_df <- as.data.frame(stack(predictors, coord_stack))
+    predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
+    training_data_sp_df <- training_data
+    coordinates(training_data_sp_df)=~coord1+coord2
+    empvar <- variogram(target_variable~1, data = training_data_sp_df)
+    fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
+    outrange <- fitvar$range[2]
+    output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    
+    nndm_loo_cv_folds <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
+    
+    
+    output$random_10_fold_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds =  random_10_fold_cv_folds, type = "geo",showPlot = TRUE))
+    output$loo_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds =  loo_cv_folds, type = "geo",showPlot = TRUE))
+    output$sb_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds =  sb_cv_folds$indexOut, type = "geo",showPlot = TRUE))
+    output$nndm_loo_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds = nndm_loo_cv_folds$indx_test, cvtrain = nndm_loo_cv_folds$indx_train, type = "geo",showPlot = TRUE))
+
     
     
     # Create lists to store all necessary information for each cv method selected! 
@@ -158,6 +181,7 @@ server <- function(input, output, session) {
     for (i in 1:length(input$cv_method)) {
       # Generate models
       models[[i]] <- train_model(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
+      # View(models[[i]])
       
       # Generate predictions
       predictions[[i]] <- predict(predictors, models[[i]])

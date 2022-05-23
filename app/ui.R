@@ -312,6 +312,12 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "random_10_fold_cv_di"),
                                                                          )
                                                         ),
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_distances)",
+                                                                         wellPanel(
+                                                                           h5("Distances:"),
+                                                                           plotOutput(outputId = "random_10_fold_cv_distances"),
+                                                                         )
+                                                        ),
                                                  ),
                                                  column(3,
                                                         wellPanel(
@@ -353,6 +359,12 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                          wellPanel(
                                                                            h5("DI:"),
                                                                            plotOutput(outputId = "loo_cv_di"),
+                                                                         )
+                                                        ),
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_distances)",
+                                                                         wellPanel(
+                                                                           h5("Distances:"),
+                                                                           plotOutput(outputId = "loo_cv_distances"),
                                                                          )
                                                         ),
                                                  ),
@@ -398,6 +410,12 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "sb_cv_di"),
                                                                          )
                                                         ),
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_distances)",
+                                                                         wellPanel(
+                                                                           h5("Distances:"),
+                                                                           plotOutput(outputId = "sb_cv_distances"),
+                                                                         )
+                                                        ),
                                                  ),
                                                  column(3,                                    
                                                         wellPanel(
@@ -441,13 +459,13 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                                            plotOutput(outputId = "nndm_loo_cv_di"),
                                                                          )
                                                         ),
+                                                        conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_distances)",
+                                                                         wellPanel(
+                                                                           h5("Distances:"),
+                                                                           plotOutput(outputId = "nndm_loo_cv_distances"),
+                                                                         )
+                                                        ),
                                                  ),
-                                               ),
-                                               conditionalPanel(condition = "input.show_distances",
-                                                                wellPanel(
-                                                                  h5("Distances:"),
-                                                                  plotOutput(outputId = "distances"),
-                                                                )
                                                ),
                               ),
                               plotOutput(outputId = "test1"),

@@ -246,37 +246,37 @@ generate_nlms <- function(nlms){
     }
     else if(nlms[i] %in% c("gaussian_random_field_10")){
       gaussian_random_field_10 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                 autocorr_range = 10,
-                                                 mag_var = 8,
+                                                 autocorr_range = 1,
+                                                 mag_var = 10,
                                                  nug = 5)
       temp$gaussian_random_field_10 <- gaussian_random_field_10
     }
     else if(nlms[i] %in% c("gaussian_random_field_20")){
       gaussian_random_field_20 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                 autocorr_range = 20,
-                                                 mag_var = 8,
+                                                 autocorr_range = 2,
+                                                 mag_var = 10,
                                                  nug = 5)
       temp$gaussian_random_field_20 <- gaussian_random_field_20
     }
     else if(nlms[i] %in% c("gaussian_random_field_40")){
       gaussian_random_field_40 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                 autocorr_range = 40,
-                                                 mag_var = 8,
+                                                 autocorr_range = 4,
+                                                 mag_var = 10,
                                                  nug = 5)
       temp$gaussian_random_field_40 <- gaussian_random_field_40
     }
     else if(nlms[i] %in% c("gaussian_random_field_60")){
       gaussian_random_field_60 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                   autocorr_range = 60,
-                                                   mag_var = 8,
+                                                   autocorr_range = 6,
+                                                   mag_var = 10,
                                                    nug = 5)
       temp$gaussian_random_field_60 <- gaussian_random_field_60
     }
     else if(nlms[i] %in% c("gaussian_random_field_80")){
       gaussian_random_field_80 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                   autocorr_range = 80,
-                                                   mag_var = 8,
-                                                   nug = 5)
+                                                    autocorr_range = 8,
+                                                    mag_var = 10,
+                                                    nug = 5)
       temp$gaussian_random_field_80 <- gaussian_random_field_80
     }
     else if(nlms[i] %in% c("polygonal_landscapes")){
@@ -421,4 +421,3 @@ coord_points$y <- st_coordinates(coord_points)[,2]
 coord_stack <- rasterise_and_stack(coord_points, 
                                    which(names(coord_points)%in%c("x","y")), 
                                    c("coord1", "coord2"))
-
