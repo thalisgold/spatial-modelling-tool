@@ -269,14 +269,26 @@ server <- function(input, output, session) {
             theme_light()
         })
         if (input$variable_selection != "RFE") {
-          output$random_10_fold_cv_aoa <- renderPlot({
-            ggplot() +
-              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
-              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-              geom_sf(fill = "transparent", data = study_area) +
-              xlab("") + ylab("") +
-              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-          })
+          if (allSame(aoa[[j]]$AOA@data@values) && aoa[[j]]$AOA@data@values[1] == 1){
+            output$sb_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
+                scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
+          else {
+            output$random_10_fold_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
+                scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
           output$random_10_fold_cv_di <- renderPlot({
             ggplot() +
               geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[j]]) +
@@ -321,14 +333,26 @@ server <- function(input, output, session) {
             theme_light()
         })
         if (input$variable_selection != "RFE") {
-          output$loo_cv_aoa <- renderPlot({
-            ggplot() +
-              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
-              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-              geom_sf(fill = "transparent", data = study_area) +
-              xlab("") + ylab("") +
-              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-          })
+          if (allSame(aoa[[k]]$AOA@data@values) && aoa[[k]]$AOA@data@values[1] == 1){
+            output$sb_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
+                scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
+          else {
+            output$loo_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
+                scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
           output$loo_cv_di <- renderPlot({
             ggplot() +
               geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[k]]) +
@@ -372,14 +396,26 @@ server <- function(input, output, session) {
             theme_light()
         })
         if (input$variable_selection != "RFE") {
-          output$sb_cv_aoa <- renderPlot({
-            ggplot() +
-              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
-              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-              geom_sf(fill = "transparent", data = study_area) +
-              xlab("") + ylab("") +
-              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-          })
+          if (allSame(aoa[[l]]$AOA@data@values) && aoa[[l]]$AOA@data@values[1] == 1){
+            output$sb_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
+                scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
+          else {
+            output$sb_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[l]]) +
+                scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
           output$sb_cv_di <- renderPlot({
             ggplot() +
               geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[l]]) +
@@ -423,14 +459,26 @@ server <- function(input, output, session) {
             theme_light()
         })
         if (input$variable_selection != "RFE") {
-          output$nndm_loo_cv_aoa <- renderPlot({
-            ggplot() +
-              geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
-              scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
-              geom_sf(fill = "transparent", data = study_area) +
-              xlab("") + ylab("") +
-              theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
-          })
+          if (allSame(aoa[[m]]$AOA@data@values) && aoa[[m]]$AOA@data@values[1] == 1){
+            output$sb_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
+                scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
+          else {
+            output$nndm_loo_cv_aoa <- renderPlot({
+              ggplot() +
+                geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
+                scale_fill_manual(name= "", values = c("#440164FF", "#3CBB75FF"), labels = c("Not applicable","Applicable"), guide = guide_legend(reverse=TRUE)) +
+                geom_sf(fill = "transparent", data = study_area) +
+                xlab("") + ylab("") +
+                theme_light() + theme(legend.position = "bottom", legend.text = element_text(margin = margin(r = 10, unit = "pt"), size = 12)) 
+            })
+          }
           output$nndm_loo_cv_di <- renderPlot({
             ggplot() +
               geom_raster(aes(x = coord1, y = coord2, fill = DI), data = surface[[m]]) +

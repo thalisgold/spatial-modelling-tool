@@ -398,6 +398,8 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   return(model)
 }
 
+allSame <- function(x) length(unique(x)) == 1
+
 # Load data --------------------------------------------------------------------
 # Create grids
 dimgrid <- 100
