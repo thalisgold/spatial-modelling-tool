@@ -156,11 +156,10 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
 }
 
 #' @author Thalis Goldschmidt
-#' Generation of a random expression
+#' Generation of a random mathematical expression
 #' @description 
-#' This function generates a random expression in order to offset the predictors of a given 
-#' stack to simulate an outcome.
-#' @param raster_stack RasterStack. A stack with any number of layers
+#' This function generates a random expression to combine the predictors of a given stack to simulate a target variable.
+#' @param raster_stack RasterStack. A stack with any number of layers.
 #' @return A string containing the expression to be evaluated. 
 #' @examples
 #' print(generate_random_function(predictors))
@@ -184,15 +183,15 @@ generate_random_function <- function(raster_stack) {
 }
 
 #' @author Thalis Goldschmidt
-#' Simulation of sample points
+#' Simulation of the sample points
 #' @description 
 #' This function generates sample points depending on the chosen distribution and number. 
 #' @param n_sample_points Integer. Number of sample points to be generated.
 #' @param dist_sample_points String. Name of the selected distribution.
 #' @return A simple feature collection with n features of the type "POINT" and their geometry.
 #' @examples
-#' generate_sample_points(50, "random")
-generate_sample_points <- function(n_sample_points, dist_sample_points){
+#' simulate_sample_points(50, "random")
+simulate_sample_points <- function(n_sample_points, dist_sample_points){
   if(dist_sample_points %in% c("nonunif")){
     nonuniform_areas <- nonuniform_sampling_polys(dgrid=dimgrid)
     sample_points <- st_sample(filter(nonuniform_areas, sample=="Yes"), n_sample_points, type = "random")
@@ -209,7 +208,7 @@ generate_sample_points <- function(n_sample_points, dist_sample_points){
 #' @description 
 #' This function generates nlms from a list of passed neutral landscape models.
 #' @param nlms List of strings. Contains all the names of the nlms to be generated.
-#' @return A stack of the generated nlms
+#' @return A stack of the generated nlms.
 #' @examples
 #' generate_nlms(c("distance_gradient", "edge_gradient"))
 generate_nlms <- function(nlms){
@@ -317,9 +316,23 @@ generate_nlms <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
+
+#' @author Thalis Goldschmidt
+#' Function that trains a model
+#' @description 
+#' This function trains a model.
+#' @param algorithm String. Algorithm to be used during training (random forest or svm).
+#' @param cv_method String. Name of the cv method to be used to evaluate the models performance. Various settings must be made for the folds.
+#' @param training_data data frame. Data frame containing information about all predictors and the target variable on the locations of the sample points.
+#' @param predictors RasterStack. Needed to extract the names of the predictors included in the training data.
+#' @param variable_selection String. Describes whether and which variable selection is to be carried out (None, FFS or RFE)
+#' @param nndm_loo_cv_folds List of numerics. Folds to be used if nndm loo cv is selected as cv method.
+#' @return A trained model.
+#' @examples
+#' distance_gradient_normalized <- normalized(distance_gradient)
 train_model <- function(algorithm, cv_method, training_data, predictors, variable_selection, nndm_loo_cv_folds) {
   names_predictors <- names(predictors)
-  # Create train control depending on cv strategy
+  # Create train control depending on cv method
   if (cv_method == "random_10_fold_cv"){
     ctrl <- trainControl(method="cv", number = 10, savePredictions = TRUE)
     rfeCtrl <- rfeControl(method="cv", number = 10, functions = rfFuncs)
@@ -338,7 +351,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     ctrl <- trainControl(method = "cv", savePredictions = T, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
     rfeCtrl <- rfeControl(method = "cv", functions = rfFuncs, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
   }
-  # Train model depending on variable selection and algorithm
+  # Train model depending on the algorithm
   if (variable_selection == "None" & algorithm == "rf"){
     model <- train(training_data[,names_predictors],
                    training_data$target_variable,
@@ -359,6 +372,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
                    ntree = 100,
                    trControl=ctrl)
   }
+  # If random forest is selected, variable selection can be carried out
   else if (variable_selection == "FFS" & algorithm == "rf"){
     model <- ffs(predictors = training_data[,names_predictors],
                        response = training_data$target_variable,
@@ -382,9 +396,16 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
   return(model)
 }
 
+#' @author Thalis Goldschmidt
+#' Function to find out if all values of a list are equal
+#' @description 
+#' This function finds out if all values of a list are the same.
+#' @param x List.
+#' @return A Boolean expression.
 allSame <- function(x) length(unique(x)) == 1
 
 # Load data --------------------------------------------------------------------
+# Global variables that are neededin several places
 # Create grids
 dimgrid <- 100
 rast_grid <- raster(ncols=dimgrid, nrows=dimgrid, xmn=0, xmx=dimgrid, ymn=0, ymx=dimgrid)
@@ -398,7 +419,6 @@ study_area <- st_as_sf(as(extent(rast_grid), "SpatialPolygons"))
 # Spatial blocks for cross validation
 spatial_blocks <- nonuniform_sampling_polys(100, 5, 5)
 spatial_blocks <- spatial_blocks[1:2]
-# plot(spatial_blocks)
 
 # Creating coordinate points to include them in the surface_data
 coord_points <- point_grid
