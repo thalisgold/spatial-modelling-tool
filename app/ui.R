@@ -2,16 +2,18 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                  tabPanel("App",
                           sidebarLayout(
                             sidebarPanel(
-                              add_busy_spinner(spin = "circle",timeout = 800, color = "#0dc5c1", position = "bottom-right"),
                               width = 3,
-                              # It is possible to plant a seed in order to always achieve the same results
-                              # and thus comparability.
+                              
+                              # Add spinner so that the user knows that the tool is performing calculations in the background
+                              add_busy_spinner(spin = "circle",timeout = 800, color = "#0dc5c1", position = "bottom-right"),
+                              
+                              
+                              # It is possible to plant a seed in order to always achieve the same results and thus comparability.
                               checkboxInput(
                                 inputId = "set_seed",
                                 label = "Set following seed to make your results reproducible:",
                                 value = TRUE
                               ),
-                              
                               conditionalPanel(condition = "input.set_seed",
                                                numericInput(
                                                  inputId = "seed",
@@ -20,16 +22,17 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  min = 1,
                                                  max = 10000,
                                                  step = 1,
-                                                 width = "30%"
+                                                 width = "25%"
                                                )
                               ),
                               br(),
-                              h4("Step 1: Simulation of the predictors"),
                               
-                              # Choose multiple NLMs to generate predictors.
+                              
+                              h4("Step 1: Simulation of the predictors"),
+                              # Choose at least two NLMs to simulate the predictors.
                               selectInput(
                                 inputId = "nlms_for_predictors",
-                                label = "Choose some NLMs as predictors:",
+                                label = "Choose some NLMs to simulate predictors:",
                                 choices = c("fractional_brownian_motion_10",
                                             "fractional_brownian_motion_20",
                                             "fractional_brownian_motion_40",
@@ -48,9 +51,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                             "random_neighbourhood",
                                             "random_rectangular_cluster"),
                                 multiple = TRUE,
-                                selected = c("fractional_brownian_motion_40", "fractional_brownian_motion_80", "gaussian_random_field_60"),
                               ),
-                              
                               conditionalPanel(condition = "input.nlms_for_predictors.length >= 2",
                                                actionButton(
                                                  inputId = "sim_predictors",
@@ -59,6 +60,8 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                               ),
                               br(),
                               br(),
+                              
+                              
                               h4("Step 2: Simulation of the target variable"),
                               selectInput(
                                 inputId = "nlms_for_target_variable",
@@ -80,24 +83,22 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                             "random",
                                             "random_neighbourhood",
                                             "random_rectangular_cluster"),
-                                multiple = TRUE,
-                                selected = c("fractional_brownian_motion_40", "fractional_brownian_motion_60")),
+                                multiple = TRUE),
                               textAreaInput(inputId = "expression", label = "Enter an expression that describes how the target variable is to be calculated (optional):", placeholder = "nlms$distance_gradient^2 - nlms$edge_gradient"),
                               checkboxInput(inputId = "r_noise", label = "Add random noise", value = FALSE),
                               checkboxInput(inputId = "s_noise", label = "Add spatially correlated noise", value = FALSE),
-              
-                              # If more than 2 were chosen, it is possible to simulate the target_variable.
                               conditionalPanel(condition = "input.nlms_for_target_variable.length >= 1",
                                                actionButton(
                                                  inputId = "sim_target_variable",
                                                  label = "Simulate target variable"
                                                )
                               ),
+                              br(),
+                              br(),
                               
-                              br(),
-                              br(),
-                              # Select the number and distribution of the sample points.
+                              
                               h4("Step 3: Simulation of the sample points"),
+                              # Select the number and distribution of the sample points.
                               selectInput(
                                 inputId = "dist_sample_points",
                                 label = "Distribution of sample points:",
@@ -107,7 +108,6 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                             "Regular" = "regular"),
                                 selected = "random"
                               ),
-                              
                               conditionalPanel(condition = "!output.clustered",
                                                numericInput(
                                                  inputId = "n_sample_points",
@@ -116,12 +116,10 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  min = 50,
                                                  max = 250,
                                                  step = 50,
-                                                 width = "60%"
+                                                 width = "50%"
                                                )
                               ),
-                              
-                              # If "clustered" is selected as the distribution, three sliders open to
-                              # determine further parameters.
+                              # If "clustered" is selected as the distribution, three sliders open to determine further parameters.
                               conditionalPanel(condition = "output.clustered",
                                                sliderInput(
                                                  inputId = "n_parents",
@@ -141,18 +139,20 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  step = 1,
                                                  width = "100%"
                                                ),
-                                               sliderInput(inputId = "radius",
-                                                           label = "Radius:",
-                                                           value = 5,
-                                                           min = 1,
-                                                           max = 8,
-                                                           step = 1,
-                                                           width = "100%"
+                                               sliderInput(
+                                                 inputId = "radius",
+                                                 label = "Radius:",
+                                                 value = 5,
+                                                 min = 1,
+                                                 max = 8,
+                                                 step = 1,
+                                                 width = "100%"
                                                )
                               ),
+                              br(),
+                              br(),
                               
-                              br(),
-                              br(),
+                              
                               h4("Step 4: Model training and prediction"),
                               radioButtons(
                                 inputId = "algorithm", 
@@ -161,7 +161,6 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                             "Support Vector Machines" = "svmRadial"),
                                 selected = "rf"
                               ),
-                              
                               selectInput(
                                 inputId = "cv_method",
                                 label = "Cross-validation method:",
@@ -172,7 +171,6 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                 ),
                                 multiple = TRUE,
                               ),
-                              
                               conditionalPanel(condition = "input.algorithm == 'rf'",
                                                selectInput(
                                                  inputId = "variable_selection", label = "Variable selection:",
@@ -180,8 +178,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  selected = "None"
                                                )
                               ),
-                              
-                              # When the result has been calculated, it is possible to make a prediction.
+                              # When the target variable has been calculated, it is possible to train a model and make a prediction.
                               uiOutput("gen_prediction"),
                               conditionalPanel(condition = "output.finished_prediction",
                                                br(),
@@ -219,8 +216,8 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  value = FALSE
                                                ),
                                                ),
-                            
                               ),
+                            
                             
                             mainPanel(
                               width = 9,
@@ -242,6 +239,8 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                 )
                                 ),
                               ),
+                              
+                              
                               conditionalPanel(condition = "input.sim_target_variable",
                                                fluidRow(
                                                  column(4, 
@@ -268,6 +267,8 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  ),
                                                ),
                               ),
+                              
+                              
                               conditionalPanel(condition = "output.finished_prediction",
                                                fluidRow(
                                                  column(3,
@@ -290,7 +291,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_difference)",
                                                                          wellPanel(
-                                                                           h5("Absolute Difference:"),
+                                                                           h5("Absolute difference:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_difference"),
                                                                          )
                                                         ),
@@ -468,12 +469,10 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  ),
                                                ),
                               ),
-                              plotOutput(outputId = "test1"),
-                              plotOutput(outputId = "test2"),
+                              plotOutput(outputId = "testPlot"),
                               br(),
                             )
                           )
                  ),
                  tabPanel("Documentation"),
-                 tabPanel("Demo"),
 )

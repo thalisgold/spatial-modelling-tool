@@ -125,7 +125,6 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$gen_prediction, {
-    print("--------------------Started generating prediction---------------------")
     predictors <- predictors()
     target_variable <- target_variable()
     sample_points <- sample_points()
@@ -152,11 +151,12 @@ server <- function(input, output, session) {
     empvar <- variogram(target_variable~1, data = training_data_sp_df)
     fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
     outrange <- fitvar$range[2]
-    output$test1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    output$testPlot <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
     
     nndm_loo_cv_folds <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
     
     
+    # Compute distances
     output$random_10_fold_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds =  random_10_fold_cv_folds, type = "geo",showPlot = TRUE))
     output$loo_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds =  loo_cv_folds, type = "geo",showPlot = TRUE))
     output$sb_cv_distances <- renderPlot(plot_geodist(sample_points_for_distances, predictors_for_distances, cvfolds =  sb_cv_folds$indexOut, type = "geo",showPlot = TRUE))
@@ -165,6 +165,7 @@ server <- function(input, output, session) {
     
     
     # Create lists to store all necessary information for each cv method selected! 
+    folds <- list()
     models <- list()
     predictions <- list()
     dif <- list()
@@ -180,7 +181,7 @@ server <- function(input, output, session) {
     }
     for (i in 1:length(input$cv_method)) {
       # Generate models
-      models[[i]] <- train_model(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection)
+      models[[i]] <- train_model(input$algorithm, input$cv_method[i], training_data, predictors, input$variable_selection, nndm_loo_cv_folds)
       # View(models[[i]])
       
       # Generate predictions
@@ -270,7 +271,7 @@ server <- function(input, output, session) {
         })
         if (input$variable_selection != "RFE") {
           if (allSame(aoa[[j]]$AOA@data@values) && aoa[[j]]$AOA@data@values[1] == 1){
-            output$sb_cv_aoa <- renderPlot({
+            output$random_10_fold_cv_aoa <- renderPlot({
               ggplot() +
                 geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[j]]) +
                 scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
@@ -334,7 +335,7 @@ server <- function(input, output, session) {
         })
         if (input$variable_selection != "RFE") {
           if (allSame(aoa[[k]]$AOA@data@values) && aoa[[k]]$AOA@data@values[1] == 1){
-            output$sb_cv_aoa <- renderPlot({
+            output$loo_cv_aoa <- renderPlot({
               ggplot() +
                 geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[k]]) +
                 scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
@@ -460,7 +461,7 @@ server <- function(input, output, session) {
         })
         if (input$variable_selection != "RFE") {
           if (allSame(aoa[[m]]$AOA@data@values) && aoa[[m]]$AOA@data@values[1] == 1){
-            output$sb_cv_aoa <- renderPlot({
+            output$nndm_loo_cv3_aoa <- renderPlot({
               ggplot() +
                 geom_raster(aes(x = coord1, y = coord2, fill = as.character(AOA)), data = surface[[m]]) +
                 scale_fill_manual(name= "", values = c("#3CBB75FF"), labels = c("Applicable"), guide = guide_legend(reverse=TRUE)) +
@@ -528,17 +529,10 @@ server <- function(input, output, session) {
     })
     outputOptions(output, "cv_methods", suspendWhenHidden = FALSE)
     
-    # output$variable_selection <- reactive({
-    #   return(input$variable_selection)
-    # })
-    # outputOptions(output, "variable_selection", suspendWhenHidden = FALSE) 
-    
     output$finished_prediction <- reactive({
       return(TRUE)
     })
     
-    outputOptions(output, "finished_prediction", suspendWhenHidden = FALSE) 
-    
-    print("-------------------Finished generating prediction---------------------")
+    outputOptions(output, "finished_prediction", suspendWhenHidden = FALSE)
   })
 }

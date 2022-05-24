@@ -317,7 +317,7 @@ generate_nlms <- function(nlms){
 #' distance_gradient_normalized <- normalized(distance_gradient)
 normalizeRaster <- function(raster){(raster-minValue(raster))/(maxValue(raster)-minValue(raster))}
 
-train_model <- function(algorithm, cv_method, training_data, predictors, variable_selection) {
+train_model <- function(algorithm, cv_method, training_data, predictors, variable_selection, nndm_loo_cv_folds) {
   names_predictors <- names(predictors)
   # Create train control depending on cv strategy
   if (cv_method == "random_10_fold_cv"){
@@ -334,23 +334,7 @@ train_model <- function(algorithm, cv_method, training_data, predictors, variabl
     rfeCtrl <- rfeControl(method="cv", index = indices$index, functions = rfFuncs)
   }
   else if(cv_method == "nndm_loo_cv"){
-    training_data_as_sfc <- st_as_sf(training_data, coords = c("coord1", "coord2"), remove = F)
-    predictors_df <- as.data.frame(stack(predictors, coord_stack))
-    predictors_as_sfc <- st_as_sf(predictors_df, coords = c("coord1", "coord2"), remove = F)
-    training_data_sp_df <- training_data
-    coordinates(training_data_sp_df)=~coord1+coord2
-    empvar <- variogram(target_variable~1, data = training_data_sp_df)
-    fitvar <- fit.variogram(empvar, vgm(model="Sph", nugget = T), fit.sills = TRUE)
-    outrange <- fitvar$range[2]
-    # Compute NNDM indices
-    NNDM_indices <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
-    # print(NNDM_indices)
-    #> nndm object
-    #> Total number of points: 50
-    #> Mean number of training points: 48.9
-    #> Minimum number of training points: 48
-    # Plot NNDM functions
-    # output$test2 <- renderPlot(plot(NNDM_indices))
+    NNDM_indices <- nndm_loo_cv_folds
     ctrl <- trainControl(method = "cv", savePredictions = T, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
     rfeCtrl <- rfeControl(method = "cv", functions = rfFuncs, index=NNDM_indices$indx_train, indexOut=NNDM_indices$indx_test)
   }
