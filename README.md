@@ -29,9 +29,11 @@ The tool was developed with the R programming language (R Core Team, 2022) and u
 The user is guided through the tool step by step.
 
 ### Step 1: Simulation of the predictors
-The simulation of the predictors relies on the [NLMR package](https://github.com/ropensci/NLMR) developed by Sciani et al. (2018). The package is able to create neutral landscape models (NLMs) that simulate landscape patterns based on theoretical distributions. For our purpose, these can be considered as spatially continuous predictors. One can imagine an NLM as an image of a spectral band of a satellite sensor, for example. 
+The simulation of the predictors relies on the [NLMR](https://github.com/ropensci/NLMR) package developed by Sciani et al. (2018). The package is able to create neutral landscape models (NLMs) that simulate landscape patterns based on theoretical distributions. For our purpose, these can be considered as spatially continuous predictors. One can imagine an NLM as an image of a spectral band of a satellite sensor, for example. 
 
 The study area in the tool is defined as a 100x100 pixel square grid (i.e. 10 000 grid cells). 17 different theoretical distributions are used to generate NLMs of this size that can be selected by the user as predictors. At least two predictors must be selected.
+
+![Generated predictors](https://github.com/geo-tech-project/frontend/raw/main/src/assets/main-tool.jpg)
 
 ### Step 2: Simulation of the target variable
 
