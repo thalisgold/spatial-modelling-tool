@@ -9,7 +9,7 @@ The performances of this models are typically communicated via cross-validation 
 
 Whenever a model is validated, it is important to ensure that the validation is carried out with independent data. This means that data used for model training should not be used for validation. Otherwise, the model error would indicate how well the model can reproduce the data, not how well it can predict on new data. 
 
-[Wadoux et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0304380021002489) assume that a model-free, design-neutral and valid assessment of map accuracy is achieved with probability sampling and design-based inference. However, when these approaches are not feasible as additional samples for validation purposes cannot be collected or since the sampling locations are often determined from the very beginning (e.g., fixed monitoring stations, samples already available), they propose to apply cross-validation methods in which the data is randomly split to estimate the performance of a model (random cross-validation).
+[Wadoux et al. (2021)](https://www.sciencedirect.com/science/article/abs/pii/S0304380021002489) assume that a model-free, design-neutral and valid assessment of map accuracy is achieved with probability sampling and design-based inference. However, when these approaches are not feasible as additional samples for validation purposes cannot be collected or since the sampling locations are often determined from the very beginning (e.g., fixed monitoring stations, samples already available), they propose to apply cross-validation methods in which the data is randomly split (random cross-validation).
 
 In many recent studies ([Meyer et al. (2019)](https://www.sciencedirect.com/science/article/abs/pii/S0304380019303230?via%3Dihub); [Ploton et al., 2020](https://www.nature.com/articles/s41467-020-18321-y); [Pohjankukka et al., 2017](https://www.tandfonline.com/doi/abs/10.1080/13658816.2017.1346255?journalCode=tgis20); [Rocha et al., 2018](https://www.mdpi.com/2072-4292/10/8/1263))., a different opinion has been expressed. The researchers of these studies claim that spatial data always correlate with each other to some degree (see Tobler’s first law of geography), which is why they cannot be independent and basic statistical procedures do not hold. This is especially the case when the data available is clustered. To ensure that the quality of the model can still be reliably estimated, they propose different cross-validation methods that attempt to warrant independence between test and validation data by dividing the data spatially rather than randomly (spatial cross-validation). In their opinion, ignoring spatial autocorrelation leads to overoptimistic models that do not perform nearly as well in practice and can lead to erroneous maps and interpretations.
 
@@ -19,18 +19,19 @@ Following these discussions, there seems to be uncertainty and a lack of underst
 ## Variable selection
 To prevent the overfitting of a model, [Meyer et al. (2019)](https://www.sciencedirect.com/science/article/abs/pii/S0304380019303230?via%3Dihub) assume that not only spatial validation strategies, but also spatial variable selection is essential for reliable predictions. To be able to make statements about the effects of variable selection and to show what impact it has on the quality of spatial predictions, two different methods were implemented in the simulation tool, the first being the forward feature selection method (FFS) developed by [Meyer et al. in 2018](https://rdrr.io/github/HannaMeyer/CAST/man/ffs.html) and secondly the default recursive feature elimination method (RFE).
 
-## AOA
+## Area of applicability (AOA)
 In 2021, Meyer and Pebesma even went a step further and published a paper in which they argue that validation of models by cross-validation alone is not sufficient. They believe that models can only be applied to new areas if they are similar to the training data. As spatial mapping requires predictions for a new geographic space, which in many cases are accompanied by new predictive properties, a method is needed to estimate the area to which a predictive model can be reliably applied. To this end, they propose their newly developed method for calculating the "area of applicability" (AOA), defined as the area for which the cross-validation estimates retain their validity. Since the AOA is considered as a relevant addition for spatial model assessment, it is also included in this tool. For more informations on the AOA click [here](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13650)!
 
 ## How does the software work?
 The tool was developed with the R programming language (R Core Team, 2022) and uses the Rshiny package in particular in order to enable the user to explore the data interactively.
 
 ## How to use the tool?
-- User guided step by step
-
+The user is guided through the tool step by step.
 
 ### Step 1: Simulation of the predictors
-- Mindestens zwei Prediktoren
+The simulation of the predictors relies on the [NLMR package](https://github.com/ropensci/NLMR) developed by Sciani et al. (2018). The package is able to create neutral landscape models (NLMs) that simulate landscape patterns based on theoretical distributions. For our purpose, these can be considered as spatially continuous predictors. One can imagine an NLM as an image of a spectral band of a satellite sensor, for example. 
+
+The study area in the tool is defined as a 100x100 pixel square grid (i.e. 10 000 grid cells). 17 different theoretical distributions are used to generate NLMs of this size that can be selected by the user as predictors. At least two predictors must be selected.
 
 ### Step 2: Simulation of the target variable
 
