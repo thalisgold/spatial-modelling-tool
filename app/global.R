@@ -1,6 +1,9 @@
 # Load packages ----------------------------------------------------------------
 
 library(shiny)
+library(shinycssloaders)
+library(shinybusy)
+library(shinythemes)
 library(ggplot2)
 library(dplyr)
 library(NLMR)
@@ -9,11 +12,9 @@ library(raster)
 library(caret)
 library(CAST)
 library(sf)
-library(shinythemes)
 library(gstat)
 library(NNDM)
-library(shinycssloaders)
-library(shinybusy)
+
 
 # Load functions ---------------------------------------------------------------
 
