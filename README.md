@@ -11,7 +11,7 @@
     - [Step 3: Simulation of the sample points](#step-3-simulation-of-the-sample-points)
     - [Step 4: Model training and prediction](#step-4-model-training-and-prediction)
     - [Step 5: Validation](#step-5-validation)
-    - [Visualisation of the results](#visualisation-of-the-results)
+    - [Visualization of the results](#visualization-of-the-results)
   - [License](#license)
 
 ## Current state of research
@@ -101,7 +101,7 @@ As a complement to the standard cross-validation strategies, the area of applica
 
 When all steps have been performed in the correct order and at least one CV method has been selected for validation, a button appears and the user can start the model training and prediction.
 
-### Visualisation of the results
+### Visualization of the results
 It is important to note that for each cross-validation method a new model is created, trained and used to make a prediction.
 The following can be displayed for each created model:
 - prediction
