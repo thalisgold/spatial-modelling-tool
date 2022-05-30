@@ -469,8 +469,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  ),
                                                ),
                               ),
-                              plotOutput(outputId = "testPlot1"),
-                              plotOutput(outputId = "testPlot2"),
+                              plotOutput(outputId = "testPlot"),
                               br(),
                             )
                           )

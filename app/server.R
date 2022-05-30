@@ -14,15 +14,6 @@ server <- function(input, output, session) {
     show_landscape(predictors())
   })
   
-  nlms <- eventReactive(input$sim_target_variable, {
-    if (input$set_seed){
-      seed <- input$seed
-    }
-    else {seed <- NULL}
-    nlms <- generate_nlms(input$nlms_for_target_variable, seed)
-    return(nlms)
-  })
-  
   target_variable <- eventReactive(input$sim_target_variable, {
     if (input$set_seed){
       seed <- input$seed
@@ -82,10 +73,6 @@ server <- function(input, output, session) {
     target_variable <- normalizeRaster(target_variable)
     names(target_variable) <- "target_variable"
     return(target_variable)
-  })
-  
-  output$testPlot2 <- renderPlot({
-    show_landscape(nlms())
   })
 
   observeEvent(input$sim_target_variable, {
@@ -181,7 +168,7 @@ server <- function(input, output, session) {
     outrange <- fitvar$range[2]
     
     # Plot variogram if wished
-    output$testPlot1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    output$testPlot <- renderPlot(plot(empvar, fitvar, main = "Outcome semi-variogram estimation"))
     
     nndm_loo_cv_folds <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
     
