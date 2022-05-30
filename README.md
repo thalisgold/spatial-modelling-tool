@@ -98,3 +98,9 @@ Since the cross-validation method has no influence on the training, it can be ex
 If variable selection is carried out, the prediction, the absolute difference and the selected predictors are plotted by default for each model, as they can differ significantly from each other.
 
 
+![Default visualization](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_default.jpg)  
+Figure 4: Default visualization of results when no variable selection is carried out and all CV methods are selected.
+
+![Default visualization](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_vs_default.jpg)  
+Figure 5: Default visualization of results when FFS is carried out and all CV methods are selected.
+
