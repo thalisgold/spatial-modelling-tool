@@ -4,7 +4,7 @@
   - [Aim of the tool](#aim-of-the-tool)
   - [Variable selection](#variable-selection)
   - [Area of applicability (AOA)](#area-of-applicability-aoa)
-  - [How to install tool](#how-to-install-tool)
+  - [How to install the tool](#how-to-install-the-tool)
   - [How does the tool work?](#how-does-the-tool-work)
     - [Step 1: Simulation of the predictors](#step-1-simulation-of-the-predictors)
     - [Step 2: Simulation of the target variable](#step-2-simulation-of-the-target-variable)
