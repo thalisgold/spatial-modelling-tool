@@ -1,6 +1,5 @@
 # Spatial-modelling-tool
 
-- [Spatial-modelling-tool](#spatial-modelling-tool)
   - [Current state of research](#current-state-of-research)
   - [Aim of the tool](#aim-of-the-tool)
   - [Variable selection](#variable-selection)
@@ -34,6 +33,10 @@ To prevent the overfitting of a model, [Meyer et al. (2019)](https://www.science
 
 ## Area of applicability (AOA)
 In 2021, Meyer and Pebesma even went a step further and published a paper in which they argue that validation of models by cross-validation alone is not sufficient. They believe that models can only be applied to new areas if they are similar to the training data. As spatial mapping requires predictions for a new geographic space, which in many cases are accompanied by new predictive properties, a method is needed to estimate the area to which a predictive model can be reliably applied. To this end, they propose their newly developed method for calculating the "area of applicability" (AOA), defined as the area for which the cross-validation estimates retain their validity. Since the AOA is considered as a relevant addition for spatial model assessment, it is also included in this tool. For more informations on the AOA click [here](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13650)!
+
+## How to install tool
+To run the tool just download this repository and install all packages used in the `~/Spatial-modelling-tool/app/global.R` file. You need at least version 0.6.1 of the [CAST](https://github.com/HannaMeyer/CAST) package. It could be that the necessary [NNDM](https://github.com/carlesmila/NNDM) and CAST versions are not downloadable via CRAN, which is why they have to be downloaded via github using the [devtools](https://github.com/r-lib/devtools) package.
+
 
 ## How does the tool work?
 The tool was developed with the [R](https://www.r-project.org/about.html) programming language  and uses the [Rshiny](https://shiny.rstudio.com/) package in particular in order to enable the user to explore the data interactively. The user is guided through the tool step by step. 
@@ -120,3 +123,13 @@ Figure 5: Default visualization of results when FFS is carried out and all CV me
 
 ![Default visualization 2](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_additional_layers.jpg)  
 Figure 6: Possible visualizations: Dissimilarity index and nearest neighbour distance distributions)
+
+## License
+Copyright (C) 2022  Thalis Goldschmidt
+
+This program is free software: you can redistribute it and/or modify it under the terms of the [General Public License](https://www.gnu.org/licenses/gpl-3.0.en.html) (GPL) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
