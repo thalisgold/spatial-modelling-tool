@@ -211,7 +211,7 @@ simulate_sample_points <- function(n_sample_points, dist_sample_points){
 #' @return A stack of the generated nlms.
 #' @examples
 #' generate_nlms(c("distance_gradient", "edge_gradient"))
-generate_nlms <- function(nlms){
+generate_nlms <- function(nlms, seed){
   temp <- stack()
   for (i in 1:length(nlms)) {
     if (nlms[i] %in% c("distance_gradient")){
@@ -223,79 +223,124 @@ generate_nlms <- function(nlms){
       edge_gradient <- nlm_edgegradient(ncol = 100, nrow = 100, direction = 25)
       temp$edge_gradient <- edge_gradient
     }
+    else if(nlms[i] %in% c("fractional_brownian_motion_05")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
+      fractional_brownian_motion_05  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.1)
+      temp$fractional_brownian_motion_05 <- fractional_brownian_motion_05
+    }
     else if(nlms[i] %in% c("fractional_brownian_motion_10")){
-      fractional_brownian_motion_10  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.1)
+      if (!is.null(seed)){
+        set.seed(seed+1)
+      }
+      fractional_brownian_motion_10  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
       temp$fractional_brownian_motion_10 <- fractional_brownian_motion_10
     }
     else if(nlms[i] %in% c("fractional_brownian_motion_20")){
-      fractional_brownian_motion_20  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.2)
+      if (!is.null(seed)){
+        set.seed(seed+2)
+      }
+      fractional_brownian_motion_20  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.4)
       temp$fractional_brownian_motion_20 <- fractional_brownian_motion_20
     }
+    else if(nlms[i] %in% c("fractional_brownian_motion_30")){
+      if (!is.null(seed)){
+        set.seed(seed+3)
+      }
+      fractional_brownian_motion_30  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.6)
+      temp$fractional_brownian_motion_30 <- fractional_brownian_motion_30
+    }
     else if(nlms[i] %in% c("fractional_brownian_motion_40")){
-      fractional_brownian_motion_40  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.4)
+      if (!is.null(seed)){
+        set.seed(seed+4)
+      }
+      fractional_brownian_motion_40  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.8)
       temp$fractional_brownian_motion_40 <- fractional_brownian_motion_40
     }
-    else if(nlms[i] %in% c("fractional_brownian_motion_60")){
-      fractional_brownian_motion_60  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.6)
-      temp$fractional_brownian_motion_60 <- fractional_brownian_motion_60
-    }
-    else if(nlms[i] %in% c("fractional_brownian_motion_80")){
-      fractional_brownian_motion_80  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 0.8)
-      temp$fractional_brownian_motion_80 <- fractional_brownian_motion_80
+    else if(nlms[i] %in% c("gaussian_random_field_05")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
+      gaussian_random_field_05 <- nlm_gaussianfield(ncol = 100, nrow = 100,
+                                                 autocorr_range = 5,
+                                                 mag_var = 50,
+                                                 nug = 2)
+      temp$gaussian_random_field_05 <- gaussian_random_field_05
     }
     else if(nlms[i] %in% c("gaussian_random_field_10")){
+      if (!is.null(seed)){
+        set.seed(seed+1)
+      }
       gaussian_random_field_10 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                 autocorr_range = 1,
-                                                 mag_var = 10,
-                                                 nug = 5)
+                                                 autocorr_range = 10,
+                                                 mag_var = 50,
+                                                 nug = 2)
       temp$gaussian_random_field_10 <- gaussian_random_field_10
     }
     else if(nlms[i] %in% c("gaussian_random_field_20")){
+      if (!is.null(seed)){
+        set.seed(seed+2)
+      }
       gaussian_random_field_20 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                 autocorr_range = 2,
-                                                 mag_var = 10,
-                                                 nug = 5)
+                                                 autocorr_range = 20,
+                                                 mag_var = 50,
+                                                 nug = 2)
       temp$gaussian_random_field_20 <- gaussian_random_field_20
     }
+    else if(nlms[i] %in% c("gaussian_random_field_30")){
+      if (!is.null(seed)){
+        set.seed(seed+3)
+      }
+      gaussian_random_field_30 <- nlm_gaussianfield(ncol = 100, nrow = 100,
+                                                 autocorr_range = 30,
+                                                 mag_var = 50,
+                                                 nug = 2)
+      temp$gaussian_random_field_30 <- gaussian_random_field_30
+    }
     else if(nlms[i] %in% c("gaussian_random_field_40")){
+      if (!is.null(seed)){
+        set.seed(seed+4)
+      }
       gaussian_random_field_40 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                 autocorr_range = 4,
-                                                 mag_var = 10,
-                                                 nug = 5)
+                                                 autocorr_range = 40,
+                                                 mag_var = 50,
+                                                 nug = 2)
       temp$gaussian_random_field_40 <- gaussian_random_field_40
     }
-    else if(nlms[i] %in% c("gaussian_random_field_60")){
-      gaussian_random_field_60 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                   autocorr_range = 6,
-                                                   mag_var = 10,
-                                                   nug = 5)
-      temp$gaussian_random_field_60 <- gaussian_random_field_60
-    }
-    else if(nlms[i] %in% c("gaussian_random_field_80")){
-      gaussian_random_field_80 <- nlm_gaussianfield(ncol = 100, nrow = 100,
-                                                    autocorr_range = 8,
-                                                    mag_var = 10,
-                                                    nug = 5)
-      temp$gaussian_random_field_80 <- gaussian_random_field_80
-    }
     else if(nlms[i] %in% c("polygonal_landscapes")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
       polygonal_landscapes <- nlm_mosaictess(ncol = 100, nrow = 100, germs = 50)
       temp$polygonal_landscapes <- polygonal_landscapes
     }
     else if(nlms[i] %in% c("random_neighbourhood")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
       random_neighbourhood <- nlm_neigh(ncol = 100, nrow = 100, p_neigh = 0.75,
                                 p_empty = 0.1, categories = 5, neighbourhood = 8)
       temp$random_neighbourhood <- random_neighbourhood
     }
     else if(nlms[i] %in% c("planar_gradient")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
       planar_gradient <- nlm_planargradient(ncol = 100, nrow = 100)
       temp$planar_gradient <- planar_gradient
     }
     else if(nlms[i] %in% c("random")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
       random <- nlm_random(ncol = 100, nrow = 100)
       temp$random <- random
     }
     else if(nlms[i] %in% c("random_rectangular_cluster")){
+      if (!is.null(seed)){
+        set.seed(seed)
+      }
       random_rectangular_cluster <- nlm_randomrectangularcluster(ncol = 100,
                                                                  nrow = 100,
                                                                  minl = 5,

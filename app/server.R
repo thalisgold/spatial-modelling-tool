@@ -3,20 +3,32 @@ server <- function(input, output, session) {
   predictors <- eventReactive(input$sim_predictors, {
     req(input$nlms_for_predictors)
     if (input$set_seed){
-      set.seed(input$seed)
+      seed <- input$seed
     }
-    return (generate_nlms(input$nlms_for_predictors))
+    else {seed <- NULL}
+    predictors <- generate_nlms(input$nlms_for_predictors, seed)
+    return (predictors)
   })
   
   output$predictors <- renderPlot({
     show_landscape(predictors())
   })
   
+  nlms <- eventReactive(input$sim_target_variable, {
+    if (input$set_seed){
+      seed <- input$seed
+    }
+    else {seed <- NULL}
+    nlms <- generate_nlms(input$nlms_for_target_variable, seed)
+    return(nlms)
+  })
+  
   target_variable <- eventReactive(input$sim_target_variable, {
     if (input$set_seed){
-      set.seed(input$seed)
+      seed <- input$seed
     }
-    nlms <- generate_nlms(input$nlms_for_target_variable)
+    else {seed <- NULL}
+    nlms <- generate_nlms(input$nlms_for_target_variable, seed)
     target_variable <- raster()
     
     # When no expression is typed in by the user generate random expression
@@ -72,6 +84,10 @@ server <- function(input, output, session) {
     return(target_variable)
   })
   
+  output$testPlot2 <- renderPlot({
+    show_landscape(nlms())
+  })
+
   observeEvent(input$sim_target_variable, {
     # Link the target variable to the coordinates stack in order to be able to display it
     output$target_variable <- renderPlot({
@@ -165,7 +181,7 @@ server <- function(input, output, session) {
     outrange <- fitvar$range[2]
     
     # Plot variogram if wished
-    # output$testPlot <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
+    output$testPlot1 <- renderPlot(plot(empvar, fitvar,cutoff = 50, main = "Outcome semi-variogram estimation"))
     
     nndm_loo_cv_folds <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
     
