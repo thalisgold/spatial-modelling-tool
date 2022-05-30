@@ -23,7 +23,9 @@ To prevent the overfitting of a model, [Meyer et al. (2019)](https://www.science
 In 2021, Meyer and Pebesma even went a step further and published a paper in which they argue that validation of models by cross-validation alone is not sufficient. They believe that models can only be applied to new areas if they are similar to the training data. As spatial mapping requires predictions for a new geographic space, which in many cases are accompanied by new predictive properties, a method is needed to estimate the area to which a predictive model can be reliably applied. To this end, they propose their newly developed method for calculating the "area of applicability" (AOA), defined as the area for which the cross-validation estimates retain their validity. Since the AOA is considered as a relevant addition for spatial model assessment, it is also included in this tool. For more informations on the AOA click [here](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13650)!
 
 ## How does the tool work?
-The tool was developed with the [R](https://www.r-project.org/about.html) programming language  and uses the [Rshiny](https://shiny.rstudio.com/) package in particular in order to enable the user to explore the data interactively. The user is guided through the tool step by step.
+The tool was developed with the [R](https://www.r-project.org/about.html) programming language  and uses the [Rshiny](https://shiny.rstudio.com/) package in particular in order to enable the user to explore the data interactively. The user is guided through the tool step by step. 
+
+Please make sure to set a seed to make your results reproducible!
 
 ### Step 1: Simulation of the predictors
 The simulation of the predictors relies on the [NLMR](https://github.com/ropensci/NLMR) package developed by Sciani et al. (2018). The package is able to create neutral landscape models (NLMs) that simulate landscape patterns based on theoretical distributions. For our purpose, these can be considered as spatially continuous predictors. One can imagine an NLM as an image of a spectral band of a satellite sensor, for example. 
@@ -44,6 +46,7 @@ The tool then offers two possibilities to generate the target variable from the 
 2. The user can enter any mathematical expression in a text field. For example:
   * Y = ((X3 + X1)^3 / (X3^2 – X4) + X5^3) * X2 
 
+Note that the user only can use NLMs in his own mathematical expression that have been selected in advance and that the order of the selected NLMs is important if a random expression is generated and the result is to be reproduced. No matter which method the user chooses, the target variable is solely calculated when the corresponding button is pressed.  
 To approximate real-world measured data and make the simulation more realistic, there is also the possibility to add random and/or spatially correlated noise. In a last step, the target variable is normalised to obtain a grid with values between zero and one.
 
 ![Simulated target variable](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/Simulation%20of%20target%20variable.jpg)  
@@ -60,13 +63,38 @@ It is necessary to simulate the places where reference data are available or, in
 Figure 3: Possible distributions of the sample points.
 
 ### Step 4: Model training and prediction
-For model training and prediction, the functions of the [caret package](https://topepo.github.io/caret/) (Kuhn et al., 2022) are used. Before a model can be trained, the training data must be prepared. For this purpose, information on both the predictors and the target variable is extracted at the previously defined sample points and subsequently merged. 
+For model training and prediction, the functions of the [caret](https://topepo.github.io/caret/) package (Kuhn et al., 2022) are used. Before a model can be trained, the training data must be prepared. For this purpose, information on both the predictors and the target variable is extracted at the previously defined sample points and subsequently merged. 
 
 After the training data has been prepared, the user has to choose which machine learning algorithm to use for the model training. He can choose between a random forest algorithm and an SVM. Since it is not the aim of the tool to deal with the effects of hyperparameter tuning, it will not be carried out. This reduces the computational effort and decreases the complexity of the tool. For the random forest algorithm the number of random features considered for partitioning at each node (mtry) was set to 2 and the number of trees to grow (ntree) was set to 100. Analogously, for the SVM, the penalty for each misclassified point (C) has been set to 1 and the parameter controlling the distance of the influence of a single point (gamma) was set to 0.5.
 
 If a random forest algorithm is selected, there is also the possibility to perform a variable selection. On the one hand, a FFS can be performed as implemented in the [CAST](https://github.com/HannaMeyer/CAST) package (Meyer, 2018) and on the other hand, a function of the caret package can be used to execute a RFE.
 Once a model has been trained, it is used to predict on the entire study area.
 
-### Results
+### Step 5: Validation
+To validate a model, up to four cross-validation methods can be selected by the user. These are the following:
+1.	Random 10-fold cross-validation
+2.	Leave-one-out cross-validation
+3.	Spatial block cross-validation (whereby the study area has been divided into 25 equal-sized blocks)
+4.	[Nearest neighbour distance matching leave-one-out cross-validation](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13851)
+
+Three widely known statistics to estimate the error of regression problems were used:  the root mean square error (RMSE), the mean absolute error (MAE), and the coefficient of determination (R2) between the actual and predicted values. The tool returns global cross-validation errors calculated on the entire training dataset and not on folds (except when RFE is executed). Since we have a prediction and know the target variable for the entire study area, we are able to compute the actual error and compare it to the cross-validation estimates. 
+
+As a complement to the standard cross-validation strategies, the area of applicability is also calculated for each model and the nearest neighbour distance distributions are visualized. This visualization allows to assess whether training data feature a representative coverage of the prediction area and if cross-validation (CV) folds (or independent test data) are adequately chosen to be representative for the prediction locations. Click [here](https://www.nature.com/articles/s41467-022-29838-9) for more information about this topic!
+
+When all steps have been performed in the correct order and at least one CV method has been selected for validation, a button appears and the user can start the model training and prediction.
+
+### Visualisation of the results
+It is important to note that for each cross-validation method a new model is created, trained and used to make a prediction.
+The following can be displayed for each created model:
+- prediction
+- absolute difference
+- selected predictors and their importance
+- area of applicability
+- dissimilarity index
+- nearest neighbour distance distributions
+
+Since the cross-validation method has no influence on the training, it can be expected that all models behave in the same way. Therefore, the same true error and only one prediction is displayed for all models by default. The CV error and the AOA, however, are displayed for each model.
+
+If variable selection is carried out, the prediction, the absolute difference and the selected predictors are plotted by default for each model, as they can differ significantly from each other.
 
 
