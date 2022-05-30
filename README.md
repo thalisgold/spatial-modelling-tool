@@ -101,6 +101,9 @@ If variable selection is carried out, the prediction, the absolute difference an
 ![Default visualization](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_default.jpg)  
 Figure 4: Default visualization of results when no variable selection is carried out and all CV methods are selected.
 
-![Default visualization](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_vs_default.jpg)  
-Figure 5: Default visualization of results when FFS is carried out and all CV methods are selected.
+![Default visualization](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_vs_default.jpg) 
+![Default visualization 2](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_vs_default_aoa.jpg)  
+Figure 5: Default visualization of results when FFS is carried out and all CV methods are selected (for different predictors and target variable than before and clustered sample points).
 
+![Default visualization 2](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/results_additional_layers.jpg)  
+Figure 6: Possible visualizations: Dissimilarity index and nearest neighbour distance distributions)
