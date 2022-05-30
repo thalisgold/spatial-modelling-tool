@@ -1,5 +1,18 @@
 # Spatial-modelling-tool
 
+- [Spatial-modelling-tool](#spatial-modelling-tool)
+  - [Current state of research](#current-state-of-research)
+  - [Aim of the tool](#aim-of-the-tool)
+  - [Variable selection](#variable-selection)
+  - [Area of applicability (AOA)](#area-of-applicability-aoa)
+  - [How does the tool work?](#how-does-the-tool-work)
+    - [Step 1: Simulation of the predictors](#step-1-simulation-of-the-predictors)
+    - [Step 2: Simulation of the target variable](#step-2-simulation-of-the-target-variable)
+    - [Step 3: Simulation of the sample points](#step-3-simulation-of-the-sample-points)
+    - [Step 4: Model training and prediction](#step-4-model-training-and-prediction)
+    - [Step 5: Validation](#step-5-validation)
+    - [Visualisation of the results](#visualisation-of-the-results)
+
 ## Current state of research
 In many areas of environmental science, it is required to have area-wide information on certain variables in order to identify spatial patterns and changes and to make important decisions based on these. For instance, air pollution maps ([Beelen et al., 2013](https://www.sciencedirect.com/science/article/pii/S0140673613621583?dgcid=api_sd_search-api-endpoint)) can help identify links between pollution and people's health, which could lead to the introduction of new limit values. Further examples are soil maps which may be used to estimate organic carbon and model agricultural productivity or continuous maps of meteorological variables such as air temperature and precipitation ([Fick and Hijmans, 2017](https://rmets.onlinelibrary.wiley.com/doi/10.1002/joc.5086)) to model species distribution and biodiversity.
 
