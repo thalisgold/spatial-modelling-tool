@@ -212,7 +212,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                ),
                                                checkboxInput(
                                                  inputId = "show_distances",
-                                                 label = "Distances",
+                                                 label = "Distance distributions",
                                                  value = FALSE
                                                ),
                                                ),
@@ -315,7 +315,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('random_10_fold_cv') && input.show_distances)",
                                                                          wellPanel(
-                                                                           h5("Distances:"),
+                                                                           h5("Distance distributions:"),
                                                                            plotOutput(outputId = "random_10_fold_cv_distances"),
                                                                          )
                                                         ),
@@ -364,7 +364,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('loo_cv') && input.show_distances)",
                                                                          wellPanel(
-                                                                           h5("Distances:"),
+                                                                           h5("Distance distributions:"),
                                                                            plotOutput(outputId = "loo_cv_distances"),
                                                                          )
                                                         ),
@@ -413,7 +413,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('sb_cv') && input.show_distances)",
                                                                          wellPanel(
-                                                                           h5("Distances:"),
+                                                                           h5("Distance distributions:"),
                                                                            plotOutput(outputId = "sb_cv_distances"),
                                                                          )
                                                         ),
@@ -462,7 +462,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                         ),
                                                         conditionalPanel(condition = "(output.cv_methods.includes('nndm_loo_cv') && input.show_distances)",
                                                                          wellPanel(
-                                                                           h5("Distances:"),
+                                                                           h5("Distance distributions:"),
                                                                            plotOutput(outputId = "nndm_loo_cv_distances"),
                                                                          )
                                                         ),
