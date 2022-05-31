@@ -53,7 +53,7 @@ The study area in the tool is defined as a 100x100 pixel square grid (i.e. 10 00
 For  fractional-brownian-motion and gaussian-random-field distributions the autocorrelation range could be specified. Five different ranges were implemented for each of these. The appended number corresponds to the range.
 
 ![Generated predictors](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/Predictors.jpg)  
-Figure 1: Six simulated predictors.
+Figure 1: Six NLMs created with the NLMR package and now serving as predictors.
 
 ### Step 2: Simulation of the target variable
 Since the tool does not work with real data, there is no variable that the model is supposed to predict later on. Hence, before any prediction can be made, it is necessary to simulate a target variable. Once again, the NLMs are utilised. The user must first select the NLMs on the basis of which the target variable is to be simulated. The same NLMs are available as for the selection of the predictors. 
@@ -68,7 +68,7 @@ Note that the user only can use NLMs in his own mathematical expression that hav
 To approximate real-world measured data and make the simulation more realistic, there is also the possibility to add random and/or spatially correlated noise. In a last step, the target variable is normalised to obtain a grid with values between zero and one.
 
 ![Simulated target variable](https://github.com/thalisgold/Spatial-modelling-tool/blob/main/images/Simulation%20of%20target%20variable.jpg)  
-Figure 2: Simulated target variable generated with a random mathematical expression using fractional_motion_40 and gaussian_random_field_20 and with spatially correlated noise added afterwards.
+Figure 2: Simulated target variable generated with a random mathematical expression using fractional_motion_40 and gaussian_random_field_20 NLMs.
 
 ### Step 3: Simulation of the sample points
 It is necessary to simulate the places where reference data are available or, in other words, where the target variable is known. For the simulation, the tool allows the selection of two parameters: the number of sample points and their spatial distribution. It is possible to choose from four spatial distributions. For the first three, only a fixed number of sample points (50, 100, 150, 200, 250) can be selected.
@@ -97,7 +97,7 @@ To validate a model, up to four cross-validation methods can be selected by the 
 
 Three widely known statistics to estimate the error of regression problems were used:  the root mean square error (RMSE), the mean absolute error (MAE), and the coefficient of determination (R2) between the actual and predicted values. The tool returns global cross-validation errors calculated on the entire training dataset and not on folds (except when RFE is executed). Since we have a prediction and know the target variable for the entire study area, we are able to compute the actual error and compare it to the cross-validation estimates. 
 
-As a complement to the standard cross-validation strategies, the area of applicability is also calculated for each model and the nearest neighbour distance distributions are visualized. This visualization allows to assess whether training data feature a representative coverage of the prediction area and if cross-validation (CV) folds (or independent test data) are adequately chosen to be representative for the prediction locations. Click [here](https://www.nature.com/articles/s41467-022-29838-9) for more information about this topic!
+As a complement to the standard cross-validation strategies, the area of applicability is calculated for each model and the nearest neighbour distance distributions are visualized. This visualization allows to assess whether training data feature a representative coverage of the prediction area and if cross-validation (CV) folds (or independent test data) are adequately chosen to be representative for the prediction locations. Click [here](https://www.nature.com/articles/s41467-022-29838-9) for more information about this topic!
 
 When all steps have been performed in the correct order and at least one CV method has been selected for validation, a button appears and the user can start the model training and prediction.
 
