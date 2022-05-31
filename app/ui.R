@@ -469,10 +469,13 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                                                  ),
                                                ),
                               ),
-                              plotOutput(outputId = "testPlot"),
+                              plotOutput(outputId = "target_variable_variogram"),
                               br(),
                             )
                           )
                  ),
-                 tabPanel("Documentation"),
+                 tabPanel("Documentation",
+                          h5("Click", a(href="https://github.com/thalisgold/spatial-modelling-tool", "here"), "to access the documentation!"),
+                          ),
+                 
 )

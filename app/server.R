@@ -168,7 +168,7 @@ server <- function(input, output, session) {
     outrange <- fitvar$range[2]
     
     # Plot variogram if wished
-    output$testPlot <- renderPlot(plot(empvar, fitvar, main = "Outcome semi-variogram estimation"))
+    output$target_variable_variogram <- renderPlot(plot(empvar, fitvar, main = "Target_variable semi-variogram estimation"))
     
     nndm_loo_cv_folds <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
     
