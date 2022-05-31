@@ -1,4 +1,4 @@
-# Spatial-modelling-tool
+# spatial-modelling-tool
 
   - [Current state of research](#current-state-of-research)
   - [Aim of the tool](#aim-of-the-tool)
