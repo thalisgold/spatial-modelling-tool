@@ -4,7 +4,7 @@
   - [Aim of the tool](#aim-of-the-tool)
   - [Variable selection](#variable-selection)
   - [Area of applicability (AOA)](#area-of-applicability-aoa)
-  - [How to install the tool](#how-to-install-the-tool)
+  - [How to install and run the tool](#how-to-install-and-run-the-tool)
   - [How does the tool work?](#how-does-the-tool-work)
     - [Step 1: Simulation of the predictors](#step-1-simulation-of-the-predictors)
     - [Step 2: Simulation of the target variable](#step-2-simulation-of-the-target-variable)
@@ -36,9 +36,8 @@ To prevent the overfitting of a model, [Meyer et al. (2019)](https://www.science
 ## Area of applicability (AOA)
 In 2021, Meyer and Pebesma even went a step further and published a paper in which they argue that validation of models by cross-validation alone is not sufficient. They believe that models can only be applied to new areas if they are similar to the training data. As spatial mapping requires predictions for a new geographic space, which in many cases are accompanied by new predictive properties, a method is needed to estimate the area to which a predictive model can be reliably applied. To this end, they propose their newly developed method for calculating the "area of applicability" (AOA), defined as the area for which the cross-validation estimates retain their validity. Since the AOA is considered as a relevant addition for spatial model assessment, it is also included in this tool. For more informations on the AOA click [here](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13650)!
 
-## How to install the tool
-To use the tool just download this repository and open the `app.Rproj` file in RStudio. Enter `renv::restore()` in your command line to install all packages needed. Note that this process could take some time. The [renv](https://cran.r-project.org/web/packages/renv/vignettes/renv.html) package will attempt to save time by copying packages from your user library (rather than reinstalling from CRAN) as appropriate. You need at least version 0.6.1 of the [CAST](https://github.com/HannaMeyer/CAST) package. It could be that the necessary [NNDM](https://github.com/carlesmila/NNDM) and [CAST](https://github.com/HannaMeyer/CAST) versions are not downloadable via CRAN, which is why they have to be downloaded manually via github using the [devtools](https://github.com/r-lib/devtools) package.
-
+## How to install the and run the tool
+To use the tool just download this repository and open the `app.Rproj` file in RStudio. Enter `renv::restore()` in your command line to install all packages needed. Note that this process could take some time. The [renv](https://cran.r-project.org/web/packages/renv/vignettes/renv.html) package will attempt to save time by copying packages from your user library (rather than reinstalling from CRAN) as appropriate. When the installation is complete, open the `app.R` file and start tool by clicking on `Run app`. If the calculations take too long, please check your R console for any hints or warnings. Perhaps not all the necessary packages have been successfully installed and further action is required on your part.
 
 ## How does the tool work?
 The tool was developed with the [R](https://www.r-project.org/about.html) programming language  and uses the [Rshiny](https://shiny.rstudio.com/) package in particular in order to enable the user to explore the data interactively. The user is guided through the tool step by step. 
