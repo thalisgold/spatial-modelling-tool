@@ -5,7 +5,7 @@ ui <- navbarPage(title = "Spatial modelling tool", theme = shinytheme("flatly"),
                               width = 3,
                               
                               # Add spinner so that the user knows that the tool is performing calculations in the background
-                              add_busy_spinner(spin = "circle",timeout = 800, color = "#0dc5c1", position = "bottom-right"),
+                              add_busy_spinner(spin = "circle",timeout = 800, color = "#0dc5c1", position = "bottom-right", height = "70px", width = "70px"),
                               
                               
                               # It is possible to plant a seed in order to always achieve the same results and thus comparability.

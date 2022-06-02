@@ -312,12 +312,12 @@ server <- function(input, output, session) {
               theme_light()
           })
         }
-        if (input$variable_selection == "None") {
-          output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
-        }
-        else if (input$variable_selection != "None") {
+        # if (input$variable_selection == "None") {
+        #   output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
+        # }
+        # else if (input$variable_selection != "None") {
           output$random_10_fold_cv_true_error <- renderTable(expr = true_errors[[j]], striped = TRUE, digits = 4, width = "100%")
-        }
+        # }
         output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
         output$random_10_fold_cv_varImp <- renderPlot({
           ggplot(data=varImp[[j]], aes(x=Importance, y= reorder(Features, Importance))) +
@@ -376,12 +376,12 @@ server <- function(input, output, session) {
               theme_light()
           })
         }
-        if (input$variable_selection == "None") {
-          output$loo_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
-        }
-        else if (input$variable_selection != "None") {
+        # if (input$variable_selection == "None") {
+        #   output$loo_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
+        # }
+        # else if (input$variable_selection != "None") {
           output$loo_cv_true_error <- renderTable(expr = true_errors[[k]], striped = TRUE, digits = 4, width = "100%")
-        }
+        # }
         output$loo_cv_cv_error <- renderTable(expr = cv_errors[[k]], striped = TRUE, digits = 4, width = "100%")
         output$loo_cv_varImp <- renderPlot({
           ggplot(data=varImp[[k]], aes(x=Importance, y= reorder(Features, Importance))) +
@@ -439,12 +439,12 @@ server <- function(input, output, session) {
               theme_light()
           })
         }
-        if (input$variable_selection == "None") {
-          output$sb_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
-        }
-        else if (input$variable_selection != "None") {
+        # if (input$variable_selection == "None") {
+        #   output$sb_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
+        # }
+        # else if (input$variable_selection != "None") {
           output$sb_cv_true_error <- renderTable(expr = true_errors[[l]], striped = TRUE, digits = 4, width = "100%")
-        }
+        # }
         output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_varImp <- renderPlot({
           ggplot(data=varImp[[l]], aes(x=Importance, y= reorder(Features, Importance))) +
@@ -502,12 +502,12 @@ server <- function(input, output, session) {
               theme_light()
           })
         }
-        if (input$variable_selection == "None") {
-          output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
-        }
-        else if (input$variable_selection != "None") {
+        # if (input$variable_selection == "None") {
+        #   output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[1]], striped = TRUE, digits = 4, width = "100%")
+        # }
+        # else if (input$variable_selection != "None") {
           output$nndm_loo_cv_true_error <- renderTable(expr = true_errors[[m]], striped = TRUE, digits = 4, width = "100%")
-        }
+        # }
         output$nndm_loo_cv_cv_error <- renderTable(expr = cv_errors[[m]], striped = TRUE, digits = 4, width = "100%")
         output$nndm_loo_cv_varImp <- renderPlot({
           ggplot(data=varImp[[m]], aes(x=Importance, y= reorder(Features, Importance))) +
