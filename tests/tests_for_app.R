@@ -461,3 +461,26 @@ nonuniform_sampling_polys <- function(dgrid, blockside=5, targetblock=5){
   # Return object
   return(checker_folds)
 }
+
+# Plots und Grafiken
+library("reshape2")
+library(ggplot2)
+library("ggpubr")
+library("knitr")
+library("tidyverse")
+library("ggthemes")
+
+
+data <- read.csv("./ratios/rmse_mae_untereinander_mit_punkt.csv",  head = TRUE, stringsAsFactors = FALSE, sep = ";")
+data$cv_method <- factor(data$cv_method, levels = c("Random 10-fold CV", "LOO CV", "Spatial block CV", "NNDM LOO CV"))
+data$error <- factor(data$error, levels = c("RMSE", "MAE"))
+jpeg("rmse_and_mae_ratios.jpeg", width = 7, height = 7, units = 'in', res = 300)
+ggplot(data, aes(x = cv_method, y= value, color = error)) +
+  scale_color_manual(values = c("#000000", "#FFAF03")) +
+  geom_boxplot() +
+  facet_grid(factor(data$autocorrelation, levels=c("low","medium","high"))~factor(data$distribution, levels=c("random","regular","clustered"))) +
+  theme_bw() +
+  ylab("") +  xlab("CV method") +
+  theme(legend.position = "left",legend.title = element_text(size=10), axis.text.x = element_text(angle=-90, vjust=0.5, hjust=0)) +
+  labs(color='Error ratio') 
+dev.off()

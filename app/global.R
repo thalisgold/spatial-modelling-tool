@@ -280,6 +280,27 @@ generate_nlms <- function(nlms, seed){
       fractional_brownian_motion_70  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 1.4)
       temp$fractional_brownian_motion_70 <- fractional_brownian_motion_70
     }
+    else if(nlms[i] %in% c("fractional_brownian_motion_80")){
+      if (!is.null(seed)){
+        set.seed(seed+8)
+      }
+      fractional_brownian_motion_80  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 1.6)
+      temp$fractional_brownian_motion_80 <- fractional_brownian_motion_80
+    }
+    else if(nlms[i] %in% c("fractional_brownian_motion_90")){
+      if (!is.null(seed)){
+        set.seed(seed+9)
+      }
+      fractional_brownian_motion_90  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 1.8)
+      temp$fractional_brownian_motion_90 <- fractional_brownian_motion_90
+    }
+    else if(nlms[i] %in% c("fractional_brownian_motion_100")){
+      if (!is.null(seed)){
+        set.seed(seed+10)
+      }
+      fractional_brownian_motion_100  <- nlm_fbm(ncol = 100, nrow = 100, fract_dim = 2)
+      temp$fractional_brownian_motion_100 <- fractional_brownian_motion_100
+    }
     else if(nlms[i] %in% c("gaussian_random_field_05")){
       if (!is.null(seed)){
         set.seed(seed)

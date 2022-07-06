@@ -168,7 +168,7 @@ server <- function(input, output, session) {
     outrange <- fitvar$range[2]
     
     # Plot variogram if wished
-    output$target_variable_variogram <- renderPlot(plot(empvar, fitvar, main = "Target variable semi-variogram estimation"))
+    # output$target_variable_variogram <- renderPlot(plot(empvar, fitvar, main = "Target variable semi-variogram estimation"))
     
     nndm_loo_cv_folds <- nndm(training_data_as_sfc, predictors_as_sfc, outrange, min_train = 0.5)
     
@@ -321,7 +321,7 @@ server <- function(input, output, session) {
         output$random_10_fold_cv_cv_error <- renderTable(expr = cv_errors[[j]], striped = TRUE, digits = 4, width = "100%" )
         output$random_10_fold_cv_varImp <- renderPlot({
           ggplot(data=varImp[[j]], aes(x=Importance, y= reorder(Features, Importance))) +
-            ylab("Features") +
+            ylab("Predictors") +
             geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
             theme_light()
         })
@@ -448,7 +448,7 @@ server <- function(input, output, session) {
         output$sb_cv_cv_error <- renderTable(expr = cv_errors[[l]], striped = TRUE, digits = 4, width = "100%")
         output$sb_cv_varImp <- renderPlot({
           ggplot(data=varImp[[l]], aes(x=Importance, y= reorder(Features, Importance))) +
-            ylab("Precitors") +
+            ylab("Predictors") +
             geom_bar(stat="identity", width = 0.3, color="grey30", fill="grey60") + 
             theme_light()
         })
