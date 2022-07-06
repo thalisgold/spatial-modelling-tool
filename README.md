@@ -47,7 +47,7 @@ Please make sure to set a seed to make your results reproducible!
 ### Step 1: Simulation of the predictors
 The simulation of the predictors relies on the [NLMR](https://github.com/ropensci/NLMR) package developed by Sciani et al. (2018). The package is able to create neutral landscape models (NLMs) that simulate landscape patterns based on theoretical distributions. For our purpose, these can be considered as spatially continuous predictors. One can imagine an NLM as an image of a spectral band of a satellite sensor, for example. 
 
-The study area in the tool is defined as a 100x100 pixel square grid (i.e. 10 000 grid cells). 17 different theoretical distributions are used to generate NLMs of this size that can be selected by the user as predictors. After the user has selected at least two of these, he can press the "simulate selected predictors" button.
+The study area in the tool is defined as a 100x100 pixel square grid (i.e. 10 000 grid cells). 23 different theoretical distributions are used to generate NLMs of this size that can be selected by the user as predictors. After the user has selected at least two of these, he can press the "simulate selected predictors" button.
 
 For  fractional-brownian-motion and gaussian-random-field distributions the autocorrelation range could be specified. Five different ranges were implemented for each of these. The appended number corresponds to the range.
 
